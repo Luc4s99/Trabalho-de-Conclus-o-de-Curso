@@ -1,2 +1,2 @@
-# Trabalho-de-Conclus-o-de-Curso
+# Trabalho-de-Conclusao-de-Curso
 Trabalho realizado como requisito para conclusão do curso de Ciência da Computação
