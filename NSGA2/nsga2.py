@@ -1,7 +1,7 @@
 # Implementação baseada no algoritmo de Thales Pinto e no artigo de Kalyanmoy Deb
 
 import random
-from .util import Util
+import util
 
 
 # Classe que descreve o algoritmo do NSGA-II
