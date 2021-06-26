@@ -15,16 +15,16 @@ if __name__ == '__main__':
         if opcao == 1:
 
             # Obtendo o arquivo de entrada
-            arquivo_entrada = input("Informe o caminho do arquivo de entrada(.kml): ")
+            arquivo_entrada = input("Informe o caminho do arquivo de entrada(.osm): ")
 
             # Verifica se o arquivo possui a extensão necessária
-            if arquivo_entrada.endswith(".kml"):
+            if arquivo_entrada.endswith(".osm"):
 
-                # Invoca função para leitura do arquivo KML
+                # Invoca função para leitura do arquivo OSM
                 util.le_arquivo(arquivo_entrada)
             else:
 
-                print("O arquivo precisa ser do tipo .kml!")
+                print("O arquivo precisa ser do tipo .osm!")
         else:
             print("Aplicação finalizada!")
             break
