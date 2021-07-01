@@ -1,4 +1,6 @@
 # Arquivo com métodos úteis para a aplicação
+# Biblioteca para leitura do arquivo OSM
+import xml.etree.cElementTree as ET
 
 
 def __init__(self, primeiro_vertice, ultimo_vertice):
@@ -17,6 +19,19 @@ def cria_individuo(self):
 
 # Realiza a leitura do arquivo de entrada
 def le_arquivo(arquivo_entrada: str):
-    # Próximo método a ser desenvolvido
-    # Utilizar a biblioteca ElementTree para realizar a leitura do OSM
-    pass
+
+    # Criando uma instância para leitura do XML que foi passado como parâmetro
+    arvore = ET.parse(arquivo_entrada)
+    raiz = arvore.getroot()
+
+    remover = []
+
+    # Percorre todos as ramificações da árvore XML
+    for ramo in raiz:
+        if ramo.tag == 'node':
+            remover.append(ramo)
+
+    for item in remover:
+        raiz.remove(item)
+
+    arvore.write('saida.osm')
