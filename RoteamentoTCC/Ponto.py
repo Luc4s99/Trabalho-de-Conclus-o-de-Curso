@@ -13,5 +13,21 @@ class Ponto:
         # Longitude que localiza o ponto
         self.longitude = 0
 
-        # Demanda que aquele ponto oferece, neste caso a quantidade de lixo
-        self.demanda = 0
+    # Métodos getters e setters
+    def get_id(self):
+        return self.id
+
+    def set_id(self, id):
+        self.id = id
+
+    def get_latitude(self):
+        return self.latitude
+
+    def set_latitude(self, latitude):
+        self.latitude = latitude
+
+    def get_longitude(self):
+        return self.longitude
+
+    def set_longitude(self, longitude):
+        self.longitude = longitude
