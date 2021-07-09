@@ -80,19 +80,44 @@ def le_arquivo(arquivo_entrada: str):
                 ponto.set_latitude(ramo.get('lat'))
                 ponto.set_longitude((ramo.get('lon')))
 
-                # Insere na lista de pontos
+                # Insere no dicionário de pontos
                 pontos[ramo.get('id')] = ponto
 
         # Se o ramo for um caminho, possui informação a ser tratada
         elif ramo.tag == 'way':
 
+            # Guardando o id da rua
+            id_rua = ramo.get('id')
+
+            # Instancia uma rua
+            rua = Rua()
+
+            # Identifica se aquela tag será retirada
             isremovida = False
+
+            # Obtém o id da rua, latitude e longitude
+            rua.set_id(id_rua)
+            rua.set_latitude(ramo.get('lat'))
+            rua.set_longitude((ramo.get('lon')))
 
             # Percorre todas as tags filhas da tag ramo
             for filha_ramo in ramo:
 
+                # Tag que possui as informações dos nós que formam a rua
+                if filha_ramo.tag == 'nd':
+
+                    # Pega a referencia do nó
+                    ref = filha_ramo.get('ref')
+
+                    # Verifica se o nó existe na lista de nós
+                    if ref in pontos.keys():
+
+                        # Insere na lista de nós da rua
+                        # O ponto é buscado na lista de pontos com base na chave, que é seu id
+                        rua.insere_ponto(pontos[ref])
+
                 # Se alguma filha possuir a tag 'tag'
-                if filha_ramo.tag == 'tag':
+                elif filha_ramo.tag == 'tag':
 
                     # Obtém o valor do atributo 'v' dessa tag
                     v = filha_ramo.get('v')
@@ -100,20 +125,25 @@ def le_arquivo(arquivo_entrada: str):
                     # Se contiver alguma informação da lista de remoção, esse nó será retirado
                     if v in remover:
 
-                        # Verifica se o ramo já não foi colocado na lista
-                        if ramo not in limpar:
-                            limpar.append(ramo)
-                            isremovida = True
+                        # Marca a tag para ser removida
+                        isremovida = True
 
-            # Se aquele caminho não será removido, então ele é mapeado
-            if not isremovida:
-                rua = Rua()
+            # Se a tag estiver marcada, ela é colocada na lista de limpeza
+            if isremovida:
 
-                # Obtém o id do nó, latitude e longitude
-                rua.set_id(ramo.get('id'))
+                # Se o ramo já não estiver na lista de limpeza, ele é adicionado
+                if ramo not in limpar:
+                    limpar.append(ramo)
+
+            # Senão a rua é inserida no dicionário de ruas
+            else:
+
+                # Define a chave(id da rua) e insere no dicionário
+                ruas[id_rua] = rua
 
     # Retira as tags do documento
     for item in limpar:
         raiz.remove(item)
 
+    # Cria um documento de saída mais enxuto, sem tag que não serão utilizadas
     arvore.write('saida.osm')
