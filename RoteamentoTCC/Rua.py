@@ -19,6 +19,9 @@ class Rua:
         # Lista que indica os pontos que formam a rua
         self.pontos = []
 
+        # Nome da rua
+        self.nome = ""
+
     def set_id(self, id):
         self.id = id
 
@@ -48,6 +51,12 @@ class Rua:
 
     def get_pontos(self):
         return self.pontos
+
+    def set_nome(self, nome):
+        self.nome = nome
+
+    def get_nome(self):
+        return self.nome
 
     # Insere um ponto na lista de pontos que formam a rua
     def insere_ponto(self, ponto):

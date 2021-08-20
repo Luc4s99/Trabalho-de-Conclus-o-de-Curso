@@ -1,10 +1,25 @@
+"""
+
+Este código possui partes desenvolvidas ou baseadas em código desenvolvido por Saulo Ricardo
+Link do GitHub: https://github.com/SauloRicardo/TCC_Final
+
+"""
+
 # Arquivo com métodos úteis para a aplicação
 # Biblioteca para leitura do arquivo OSM
 import xml.etree.cElementTree as ET
+# Biblioteca para plotagem de dados no google maps
+import gmplot
 # Classe que define um ponto no mapa
 from Ponto import *
 # Classe que define uma rua no mapa
 from Rua import *
+
+# Armazena em um dicionario os pontos que foram mapeados na leitura do arquivo
+pontos = {}
+
+# Armazena em um dicionario as ruas que foram mapeadas na leitura do arquivo
+ruas = {}
 
 
 def __init__(self, primeiro_vertice, ultimo_vertice):
@@ -38,12 +53,6 @@ def le_arquivo(arquivo_entrada: str):
 
     # Armazena as tags que serão retiradas
     limpar = []
-
-    # Armazena em um dicionario os pontos que foram mapeados na leitura do arquivo
-    pontos = {}
-
-    # Armazena em um dicionario as ruas que foram mapeadas na leitura do arquivo
-    ruas = {}
 
     # Percorre todos as tags filhas da tag raiz
     for ramo in raiz:
@@ -145,5 +154,34 @@ def le_arquivo(arquivo_entrada: str):
     for item in limpar:
         raiz.remove(item)
 
-    # Cria um documento de saída mais enxuto, sem tag que não serão utilizadas
+    print("Arquivo de saída gerado!")
+
+    # Cria um documento de saída mais enxuto, sem tags que não serão utilizadas
     arvore.write('saida.osm')
+
+
+# Função para plotagem do mapa obtido no google maps, para confirmação do posicionamento de ruas
+def plot_maps():
+
+    if len(pontos) == 0:
+
+        print("Antes de realizar a plotagem, inicialize o programa!")
+    else:
+
+        # Definindo o local padrão como um ponto aleatório, já que o dicionário não é ordenado
+        chave = list(pontos.keys())[0]
+
+        # Obtendo a latitude e longitude desse ponto aleatório
+        mapa_plot = gmplot.GoogleMapPlotter(pontos[chave].latitude, pontos[chave].longitude, 13)
+
+        # Monta uma lista de tuplas para ser plotada no mapa
+        tuplas_gm_plot = []
+
+        # Preenche com as coordenadas dos pontos
+        for ponto in pontos:
+            tuplas_gm_plot.append((pontos[ponto].latitude, pontos[ponto].longitude))
+
+        # Desenha os pontos passados e gera um arquivo HTML para visualização
+        mapa_rotas_lat, mapa_rotas_lon = zip(*tuplas_gm_plot)
+        mapa_plot.scatter(mapa_rotas_lat, mapa_rotas_lon, 'purple', size=5, marker=False)
+        mapa_plot.draw("mapa.html")

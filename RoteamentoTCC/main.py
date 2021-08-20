@@ -1,3 +1,10 @@
+"""
+
+Este código possui partes desenvolvidas ou baseadas em código desenvolvido por Saulo Ricardo
+Link do GitHub: https://github.com/SauloRicardo/TCC_Final
+
+"""
+
 import util
 
 if __name__ == '__main__':
@@ -6,12 +13,15 @@ if __name__ == '__main__':
         print("***** TRABALHO DE CONCLUSÃO DE CURSO *****")
         print("Autor: Lucas Mateus Menezes Silva")
         print("Título: *Ainda a definir*\n")
+        print("")
 
-        print("1 - Inserir arquivo de entrada")
+        print("1 - Inicializar")
+        print("2 - Realizar plot no Google Maps")
         print("0 - Sair")
 
         opcao = int(input("=> "))
 
+        # Opção para leitura de arquivo e geração de arquivo sem tags desnecessárias
         if opcao == 1:
 
             # Obtendo o arquivo de entrada
@@ -25,6 +35,11 @@ if __name__ == '__main__':
             else:
 
                 print("O arquivo precisa ser do tipo .osm!")
+
+        # Opção para gerar plot do mapa obtido no google maps
+        elif opcao == 2:
+            util.plot_maps()
+
         else:
             print("Aplicação finalizada!")
             break
