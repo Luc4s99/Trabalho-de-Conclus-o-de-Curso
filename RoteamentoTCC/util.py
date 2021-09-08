@@ -14,12 +14,17 @@ import gmplot
 from Ponto import *
 # Classe que define uma rua no mapa
 from Rua import *
+# Biblioteca que realiza operações com grafos
+import networkx as nx
 
 # Armazena em um dicionario os pontos que foram mapeados na leitura do arquivo
 pontos = {}
 
 # Armazena em um dicionario as ruas que foram mapeadas na leitura do arquivo
 ruas = {}
+
+# Grafo que será utilizado para representar o mapa da cidade
+grafo_cidade = nx.Graph()
 
 
 def __init__(self, primeiro_vertice, ultimo_vertice):
@@ -51,7 +56,7 @@ def le_arquivo(arquivo_entrada: str):
     remover = ['traffic_signals', 'place_of_worship', 'church', 'supermarket', 'educational_institution', 'school',
                'hospital', 'atm', 'bakery', 'bank', 'pharmacy', 'bus_station', 'hotel', 'convenience', 'taxi',
                'restaurant', 'library', 'police', 'furniture', 'sports_centre', 'tower', 'fast_food', 'peak', 'river',
-               'rail', 'wood']
+               'rail', 'wood', 'statue', 'clothes', 'fuel', 'gate', 'cattle_grid', 'track', 'path', 'water', 'unpaved']
 
     # Armazena as tags que serão retiradas
     limpar = []
@@ -174,6 +179,7 @@ def le_arquivo(arquivo_entrada: str):
                 if pontos.__contains__(ramo.get('id')):
                     pontos.pop(ramo.get('id'))
 
+        # Chegando as tags de caminhos, nada mais precisa ser verificado
         if ramo.tag == 'way':
             break
 
@@ -187,28 +193,69 @@ def le_arquivo(arquivo_entrada: str):
     print("Arquivo de saída gerado!")
 
 
-# Função para plotagem do mapa obtido no google maps, para confirmação do posicionamento de ruas
-def plot_maps():
+# Função que faz a interligação dos pontos obtidos no mapa, forma as ruas e as plota
+def mapeia_ruas(arquivo):
 
-    if len(pontos) == 0:
+    lat = []
+    lon = []
 
-        print("Antes de realizar a plotagem, inicialize o programa!")
-    else:
+    tuplas_latlon = []
 
-        # Definindo o local padrão como um ponto aleatório, já que o dicionário não é ordenado
-        chave = list(pontos.keys())[0]
+    # Obtem os pontos para serem plotados
+    for x in pontos:
+        tuplas_latlon.append((pontos[x].get_latitude(), pontos[x].get_longitude()))
+        lat.append(pontos[x].get_latitude())
+        lon.append(pontos[x].get_longitude())
 
-        # Obtendo a latitude e longitude desse ponto aleatório
-        mapa_plot = gmplot.GoogleMapPlotter(pontos[chave].latitude, pontos[chave].longitude, 13)
+    # Adiciona o local inicial a plotagem
+    mapa_plot = gmplot.GoogleMapPlotter(lat[0], lon[0], 13)
 
-        # Monta uma lista de tuplas para ser plotada no mapa
-        tuplas_gm_plot = []
+    # Criando uma instância para leitura do XML que foi passado como parâmetro
+    arvore = ET.parse(arquivo)
+    # Obtém a tag raiz do arquivo
+    raiz = arvore.getroot()
 
-        # Preenche com as coordenadas dos pontos
-        for ponto in pontos:
-            tuplas_gm_plot.append((pontos[ponto].latitude, pontos[ponto].longitude))
+    # Começa a leitura das tags do arquivo
+    for ramo in raiz:
 
-        # Desenha os pontos passados e gera um arquivo HTML para visualização
-        mapa_rotas_lat, mapa_rotas_lon = zip(*tuplas_gm_plot)
-        mapa_plot.scatter(mapa_rotas_lat, mapa_rotas_lon, 'purple', size=5, marker=False)
-        mapa_plot.draw("mapa.html")
+        # Se a tag for um caminho, então ela será analisada
+        if ramo.tag == 'way':
+
+            # Realiza a instância de uma rua
+            rua = Rua()
+
+            # Usa o mesmo id da rua do arquivo de parâmetro na rua instanciada
+            rua.set_id(ramo.get('id'))
+
+            # Lista de tuplas com latitudes e longitudes dos pontos das ruas
+            tuplas_rua = []
+
+            # Ponto que está sendo analisado
+            ponto_atual = Ponto()
+
+            # Percorrendo todas as tags de atributo da tag atual
+            for filha_ramo in ramo:
+
+                # Se a tag atributo for do tipo nd (nó)
+                # Ela possui a referencia de um dos nós que compõe a rua
+                if filha_ramo.tag == 'nd':
+
+                    # Verifica se esse nó existe
+                    if pontos.__contains__(filha_ramo.get('ref')):
+
+                        # Salva o ponto atual, e insere suas coordenadas na lista de tuplas
+                        ponto_atual = pontos[filha_ramo.get('ref')]
+                        tuplas_rua.append((float(ponto_atual.get_latitude()), float(ponto_atual.get_longitude())))
+
+            # Se existir algo na lista de tuplas, significa que existem dados a serem exibidos
+            if len(tuplas_rua) != 0:
+
+                # Adiciona ao mapa de plotagem as coordenadas das ruas
+                rua_lat, rua_lon = zip(*tuplas_rua)
+                mapa_plot.scatter(rua_lat, rua_lon, '#3B0B39', size=5, marker=False)
+                mapa_plot.plot(rua_lat, rua_lon, 'cornflowerblue', edge_width=3)
+
+    # Adiciona ao mapa de plotagem as coordenadas dos pontos e gera o arquivo
+    draw_lat, draw_lon = zip(*tuplas_latlon)
+    mapa_plot.scatter(draw_lat, draw_lon, '#3B0B39', size=5, marker=False)
+    mapa_plot.draw('mapa.html')

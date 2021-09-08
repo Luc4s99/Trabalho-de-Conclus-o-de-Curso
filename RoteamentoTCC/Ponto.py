@@ -5,13 +5,16 @@ class Ponto:
     def __init__(self):
 
         # Identificador único do ponto
-        self.id = 0
+        self.id = -1
 
         # Latitude que localiza o ponto
         self.latitude = 0
 
         # Longitude que localiza o ponto
         self.longitude = 0
+
+        # Lista dos pontos aos quais este ponto tem ligação
+        self.pontos_vizinhos = []
 
     # Métodos getters e setters
     def get_id(self):
@@ -31,3 +34,12 @@ class Ponto:
 
     def set_longitude(self, longitude):
         self.longitude = longitude
+
+    def get_pontos_vizinhos(self):
+        return self.pontos_vizinhos
+
+    def set_pontos_vizinhos(self, pontos):
+        self.pontos_vizinhos = pontos
+
+    def realiza_ligacao(self, ponto):
+        self.pontos_vizinhos.append(ponto)
