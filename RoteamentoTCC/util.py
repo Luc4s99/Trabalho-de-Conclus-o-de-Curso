@@ -16,6 +16,14 @@ from Ponto import *
 from Rua import *
 # Biblioteca que realiza operações com grafos
 import networkx as nx
+# Biblioteca para cálculos utilizando coordenadas geográficas
+import geopy.distance
+# Biblioteca para plotagem de gráficos e dados em geral
+from matplotlib import pyplot as plt
+
+# TESTE
+plt.rcParams['figure.figsize'] = (16, 9)
+plt.style.use('ggplot')
 
 # Armazena em um dicionario os pontos que foram mapeados na leitura do arquivo
 pontos = {}
@@ -233,6 +241,8 @@ def mapeia_ruas(arquivo):
             # Ponto que está sendo analisado
             ponto_atual = Ponto()
 
+            ponto_anterior = Ponto()
+
             # Percorrendo todas as tags de atributo da tag atual
             for filha_ramo in ramo:
 
@@ -247,6 +257,31 @@ def mapeia_ruas(arquivo):
                         ponto_atual = pontos[filha_ramo.get('ref')]
                         tuplas_rua.append((float(ponto_atual.get_latitude()), float(ponto_atual.get_longitude())))
 
+                        # Insere o ponto na lista de pontos da rua
+                        rua.insere_ponto(ponto_atual)
+
+                        # Se o ponto anterior ao atual possuir algum id
+                        # Significa que existe uma ligação de pontos a ser realizada
+                        if ponto_anterior.get_id() != -1:
+
+                            pontos[filha_ramo.get('ref')].realiza_ligacao(ponto_anterior)
+
+                        ponto_anterior = ponto_atual
+
+                # Identifica o atributo 'tag' da tag atual
+                if filha_ramo.tag == 'tag':
+
+                    # Identifica a chave nome, que indica o nome da rua e atribui a rua atual
+                    if filha_ramo.get('k') == 'name':
+
+                        rua.set_nome(filha_ramo.get('v'))
+
+            # Verifica se a rua possui ao menos um ponto em sua formação
+            # Se possuir, ela é inserida no dicionário de ruas
+            if len(rua.get_pontos()) != 0:
+
+                ruas[rua.get_id()] = rua
+
             # Se existir algo na lista de tuplas, significa que existem dados a serem exibidos
             if len(tuplas_rua) != 0:
 
@@ -259,3 +294,37 @@ def mapeia_ruas(arquivo):
     draw_lat, draw_lon = zip(*tuplas_latlon)
     mapa_plot.scatter(draw_lat, draw_lon, '#3B0B39', size=5, marker=False)
     mapa_plot.draw('mapa.html')
+
+
+# Função que monta o grafo que representa o mapa e o plota
+def monta_grafo():
+
+    coordenadas_pontos = {}
+
+    for pnt in pontos:
+
+        grafo_cidade.add_node(pontos[pnt].get_id())
+
+        for pnt_ligado in pontos[pnt].get_pontos_vizinhos():
+
+            distancia_pontos = calcula_distancia_pontos(pontos[pnt].get_latitude(), pontos[pnt].get_longitude(),
+                                                        pnt_ligado.get_latitude(), pnt_ligado.get_longitude())
+
+            grafo_cidade.add_edge(pontos[pnt].get_id(), pnt_ligado.get_id(), weight=distancia_pontos * distancia_pontos)
+
+    for node in nx.nodes(grafo_cidade):
+
+        coordenadas_pontos[node] = pontos[node].retorna_coordenadas()
+
+    nx.draw(grafo_cidade, node_size=0.5, node_color='grey', alpha=0.5, with_labels=False, pos=coordenadas_pontos)
+    plt.savefig("GrafoCidade.png", dpi=1000)
+
+
+# Função que calcula a distância entre dois pontos, utilizando a função pronta da biblioteca geopy
+def calcula_distancia_pontos(lat_ponto1, lon_ponto1, lat_ponto2, lon_ponto2):
+
+    # Converte as coordenadas em tuplas
+    coord_pnt1 = (lat_ponto1, lon_ponto1)
+    coord_pnt2 = (lat_ponto2, lon_ponto2)
+
+    return geopy.distance.geodesic(coord_pnt1, coord_pnt2).m

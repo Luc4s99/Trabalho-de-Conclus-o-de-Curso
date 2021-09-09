@@ -43,3 +43,6 @@ class Ponto:
 
     def realiza_ligacao(self, ponto):
         self.pontos_vizinhos.append(ponto)
+
+    def retorna_coordenadas(self):
+        return tuple([float(self.latitude), float(self.longitude)])
