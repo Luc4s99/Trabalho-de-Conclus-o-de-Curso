@@ -196,7 +196,7 @@ def le_arquivo(arquivo_entrada: str):
         raiz.remove(item)
 
     # Cria um documento de saída mais enxuto, sem tags que não serão utilizadas
-    arvore.write('saida.osm')
+    arvore.write('saida/saida.osm')
 
     print("Arquivo de saída gerado!")
 
@@ -293,7 +293,7 @@ def mapeia_ruas(arquivo):
     # Adiciona ao mapa de plotagem as coordenadas dos pontos e gera o arquivo
     draw_lat, draw_lon = zip(*tuplas_latlon)
     mapa_plot.scatter(draw_lat, draw_lon, '#3B0B39', size=5, marker=False)
-    mapa_plot.draw('mapa.html')
+    mapa_plot.draw('saida/mapa.html')
 
 
 # Função que monta o grafo que representa o mapa e o plota
@@ -317,7 +317,7 @@ def monta_grafo():
         coordenadas_pontos[node] = pontos[node].retorna_coordenadas()
 
     nx.draw(grafo_cidade, node_size=0.5, node_color='grey', alpha=0.5, with_labels=False, pos=coordenadas_pontos)
-    plt.savefig("GrafoCidade.png", dpi=1000)
+    plt.savefig("saida/GrafoCidade.png", dpi=1000)
 
 
 # Função que calcula a distância entre dois pontos, utilizando a função pronta da biblioteca geopy
