@@ -9,13 +9,14 @@ from sys import maxsize
 import random
 
 # Importando métodos úteis da classe população
-from .population import Population
+from RoteamentoTCC.nsga.population import Population
 
 
 # Classe que define o algoritmo NSGA-II
 class NSGA2:
 
-    def __init__(self, generations, population_size, genome_min_value, genome_max_value, crossover_constant, crossover_rate):
+    def __init__(self, genotype_quantity, generations, population_size, genome_min_value, genome_max_value,
+                 crossover_constant, crossover_rate, capacidade_caminhao):
 
         self.generations = generations
 
@@ -35,7 +36,8 @@ class NSGA2:
 
         # Size of genome list
         # Attention! For Genetic Quantum, this value must be 1
-        self.genotype_quantity = 1
+        # self.genotype_quantity = 1
+        self.genotype_quantity = genotype_quantity
 
         # Mutation probability. "pm" in NSGA-II paper
         self.mutation_rate = 1/self.genotype_quantity
@@ -47,7 +49,8 @@ class NSGA2:
         self.disturb_percent = 0.5
 
         # "Rt" on NSGA-II paper
-        self.population = Population(self.genotype_quantity, self.genome_min_value, self.genome_max_value)
+        self.population = Population(self.genotype_quantity, self.genome_min_value, self.genome_max_value,
+                                     capacidade_caminhao)
 
     def run(self):
         """Method responsible for running the main loop of NSGA-II"""
@@ -55,7 +58,8 @@ class NSGA2:
         debug = True
         plot = False
 
-        if debug: print("# Initiating generation 0...")
+        if debug:
+            print("# Initiating generation 0...")
 
         # Creating a parent population P0
         self.population.initiate(self.population_size//2)
@@ -154,7 +158,7 @@ class NSGA2:
                     fronts[0].insert(current_individual)
 
         # Temporary front
-        #current_front = self.new_population()
+        # current_front = self.new_population()
 
         i = 0
         while len(fronts[i].individuals) > 0:

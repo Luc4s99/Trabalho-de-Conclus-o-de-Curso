@@ -14,10 +14,8 @@ from .individual import Individual
 class Population:
     """Class of population of indiviuals, used by NSGA-II"""
 
-    # "I" for integers and "R" for real values
-    RANDOM_TYPE = "R"
+    def __init__(self, genotype_quantity, genome_min_value, genome_max_value, capacidade_caminhao):
 
-    def __init__(self, genotype_quantity, genome_min_value, genome_max_value):
         random.seed()
 
         # Size of genome list
@@ -30,34 +28,60 @@ class Population:
 
         self.individuals = list()
 
+        # Capacidade do caminhao em quilos
+        self.capacidade_caminhao = capacidade_caminhao
+
     def initiate(self, n_individuals):
         """Initialize a new population"""
 
         for _ in range(n_individuals):
+
+            # Lista de inteiros que representa o genoma do indivíduo
+
             genome = list()
 
-            for _ in range(self.genotype_quantity):
-                if self.RANDOM_TYPE == "R":
-                    genotype = random.uniform(self.genome_min_value, self.genome_max_value)
-                if self.RANDOM_TYPE == "I":
-                    genotype = random.randrange(self.genome_min_value, self.genome_max_value + 1)
+            # Gera um novo indivíduo, sempre verificando se a quantodade de lixo não estourou o limite
+            while len(genome) <= self.genotype_quantity:
+
+                genotype = random.randrange(self.genome_min_value, self.genome_max_value + 1)
+
                 genome.append(genotype)
+
+                # Verifica se o novo gene não excedeu a capacidade do indivíduo
+                # TODO Excluir pontos desnecessários para a geração das demandas de lixo
+                # TODO Utilizar o k-means para o agrupamento dos pontos
+                # TODO Terminar a geração do indivíduo e o cálculo da quantidade de lixo da rota do mesmo
+                if self.calcula_quantidade_lixo(genome) > self.capacidade_caminhao:
+
+                    # Remove o último gene que sobrecarregou a rota
+                    genome.remove(len(genome))
+
+                    # Encerra o loop
+                    break
 
             self.new_individual(genome)
 
+    def calcula_quantidade_lixo(self, genoma):
+        """Calcula a quantidade de lixo de um determinado genoma e a retorna"""
+
+        # Verifica se o genoma está vazio, se estiver a quantidade de lixo é 0
+        if len(genoma) == 0:
+
+            return 0
+
     def new_individual(self, genome):
-        '''Create a new individual with "genome" and insert into population'''
+        """Create a new individual with "genome" and insert into population"""
 
         self.insert(Individual(genome))
 
     def insert(self, individual):
-        '''Insert a new individual into population'''
+        """Insert a new individual into population"""
 
         self.individuals.append(individual)
         self.size += 1
 
     def delete_individual(self, individual):
-        '''Delete "individual" from population'''
+        """Delete "individual" from population"""
 
         self.individuals.remove(individual)
         self.size -= 1

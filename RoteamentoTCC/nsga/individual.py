@@ -7,7 +7,8 @@ Link do GitHub: https://github.com/thalesorp/NSGA-II
 
 
 class Individual:
-    '''Individuals calss of the population in NSGA-II'''
+
+    """Individuals calss of the population in NSGA-II"""
 
     id = 1
 
@@ -36,14 +37,14 @@ class Individual:
         self.crowding_distance = None
 
     def dominates(self, individual):
-        '''Function that tells if the actual individual dominates another
+        """Function that tells if the actual individual dominates another
 
         A(x1, y1) dominates B(x2, y2) when:
             (x1 <= x2 and y1 <= y2) and (x1 < x2 or y1 < y2)
 
         A(x1, y1, z1) dominates B(x2, y2, z2) when:
             [ (x1 <= x2) and (y1 <= y2) and (z1 <= z2) ] and [ (x1 < x2) or (y1 < y2) or (z1 < z2) ]
-            [ first_half ] and [ second_half ]'''
+            [ first_half ] and [ second_half ]"""
 
         first_half = True
         second_half = False

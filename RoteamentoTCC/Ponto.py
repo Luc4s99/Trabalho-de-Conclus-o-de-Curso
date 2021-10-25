@@ -1,10 +1,17 @@
 # Classe que define um ponto do mapa
 
+import itertools
+
+
 class Ponto:
 
-    def __init__(self):
+    # Controla o valor assumido pelo label do ponto
+    # O label é o que será printado na plotagem do grafo para identificar o ponto
+    novo_label = itertools.count()
 
-        # Identificador único do ponto
+    def __init__(self, gera_label=True):
+
+        # Identificador único do ponto no grafo da cidade
         self.id = -1
 
         # Latitude que localiza o ponto
@@ -16,30 +23,11 @@ class Ponto:
         # Lista dos pontos aos quais este ponto tem ligação
         self.pontos_vizinhos = []
 
-    # Métodos getters e setters
-    def get_id(self):
-        return self.id
-
-    def set_id(self, id):
-        self.id = id
-
-    def get_latitude(self):
-        return self.latitude
-
-    def set_latitude(self, latitude):
-        self.latitude = latitude
-
-    def get_longitude(self):
-        return self.longitude
-
-    def set_longitude(self, longitude):
-        self.longitude = longitude
-
-    def get_pontos_vizinhos(self):
-        return self.pontos_vizinhos
-
-    def set_pontos_vizinhos(self, pontos):
-        self.pontos_vizinhos = pontos
+        # Gera um label somente para os pontos que forem mapeados
+        # Isso será usado depois para verificar quantos pontos foram mapeados
+        if gera_label:
+            # Label que identifica o ponto
+            self.label = next(self.novo_label)
 
     def realiza_ligacao(self, ponto):
         self.pontos_vizinhos.append(ponto)

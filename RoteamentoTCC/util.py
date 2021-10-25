@@ -11,9 +11,9 @@ import xml.etree.cElementTree as ET
 # Biblioteca para plotagem de dados no google maps
 import gmplot
 # Classe que define um ponto no mapa
-from Ponto import *
+from RoteamentoTCC.Ponto import *
 # Classe que define uma rua no mapa
-from Rua import *
+from RoteamentoTCC.Rua import *
 # Biblioteca que realiza operações com grafos
 import networkx as nx
 # Biblioteca para cálculos utilizando coordenadas geográficas
@@ -36,16 +36,6 @@ grafo_cidade = nx.Graph()
 
 
 def __init__(self, primeiro_vertice, ultimo_vertice):
-    pass
-
-
-# Cria a população com um determinado número de individuos
-def inicia_populacao(self, tam_populacao):
-    pass
-
-
-# Cria um único indivíduo
-def cria_individuo(self):
     pass
 
 
@@ -100,9 +90,9 @@ def le_arquivo(arquivo_entrada: str):
                 ponto = Ponto()
 
                 # Obtém o id do nó, latitude e longitude
-                ponto.set_id(ramo.get('id'))
-                ponto.set_latitude(ramo.get('lat'))
-                ponto.set_longitude((ramo.get('lon')))
+                ponto.id = ramo.get('id')
+                ponto.latitude = ramo.get('lat')
+                ponto.longitude = (ramo.get('lon'))
 
                 # Insere no dicionário de pontos
                 pontos[ramo.get('id')] = ponto
@@ -158,7 +148,7 @@ def le_arquivo(arquivo_entrada: str):
                 rua = Rua()
 
                 # Seta o id da rua
-                rua.set_id(id_rua)
+                rua.id = id_rua
 
                 for ref in referencias_nos:
 
@@ -211,9 +201,9 @@ def mapeia_ruas(arquivo):
 
     # Obtem os pontos para serem plotados
     for x in pontos:
-        tuplas_latlon.append((pontos[x].get_latitude(), pontos[x].get_longitude()))
-        lat.append(pontos[x].get_latitude())
-        lon.append(pontos[x].get_longitude())
+        tuplas_latlon.append((pontos[x].latitude, pontos[x].longitude))
+        lat.append(pontos[x].latitude)
+        lon.append(pontos[x].longitude)
 
     # Adiciona o local inicial a plotagem
     mapa_plot = gmplot.GoogleMapPlotter(lat[0], lon[0], 13)
@@ -233,15 +223,15 @@ def mapeia_ruas(arquivo):
             rua = Rua()
 
             # Usa o mesmo id da rua do arquivo de parâmetro na rua instanciada
-            rua.set_id(ramo.get('id'))
+            rua.id = ramo.get('id')
 
             # Lista de tuplas com latitudes e longitudes dos pontos das ruas
             tuplas_rua = []
 
             # Ponto que está sendo analisado
-            ponto_atual = Ponto()
+            ponto_atual = Ponto(gera_label=False)
 
-            ponto_anterior = Ponto()
+            ponto_anterior = Ponto(gera_label=False)
 
             # Percorrendo todas as tags de atributo da tag atual
             for filha_ramo in ramo:
@@ -255,14 +245,14 @@ def mapeia_ruas(arquivo):
 
                         # Salva o ponto atual, e insere suas coordenadas na lista de tuplas
                         ponto_atual = pontos[filha_ramo.get('ref')]
-                        tuplas_rua.append((float(ponto_atual.get_latitude()), float(ponto_atual.get_longitude())))
+                        tuplas_rua.append((float(ponto_atual.latitude), float(ponto_atual.longitude)))
 
                         # Insere o ponto na lista de pontos da rua
                         rua.insere_ponto(ponto_atual)
 
                         # Se o ponto anterior ao atual possuir algum id
                         # Significa que existe uma ligação de pontos a ser realizada
-                        if ponto_anterior.get_id() != -1:
+                        if ponto_anterior.id != -1:
 
                             pontos[filha_ramo.get('ref')].realiza_ligacao(ponto_anterior)
 
@@ -274,13 +264,13 @@ def mapeia_ruas(arquivo):
                     # Identifica a chave nome, que indica o nome da rua e atribui a rua atual
                     if filha_ramo.get('k') == 'name':
 
-                        rua.set_nome(filha_ramo.get('v'))
+                        rua.nome = filha_ramo.get('v')
 
             # Verifica se a rua possui ao menos um ponto em sua formação
             # Se possuir, ela é inserida no dicionário de ruas
-            if len(rua.get_pontos()) != 0:
+            if len(rua.pontos) != 0:
 
-                ruas[rua.get_id()] = rua
+                ruas[rua.id] = rua
 
             # Se existir algo na lista de tuplas, significa que existem dados a serem exibidos
             if len(tuplas_rua) != 0:
@@ -303,14 +293,14 @@ def monta_grafo():
 
     for pnt in pontos:
 
-        grafo_cidade.add_node(pontos[pnt].get_id())
+        grafo_cidade.add_node(pontos[pnt].id)
 
-        for pnt_ligado in pontos[pnt].get_pontos_vizinhos():
+        for pnt_ligado in pontos[pnt].pontos_vizinhos:
 
-            distancia_pontos = calcula_distancia_pontos(pontos[pnt].get_latitude(), pontos[pnt].get_longitude(),
-                                                        pnt_ligado.get_latitude(), pnt_ligado.get_longitude())
+            distancia_pontos = calcula_distancia_pontos(pontos[pnt].latitude, pontos[pnt].longitude,
+                                                        pnt_ligado.latitude, pnt_ligado.longitude)
 
-            grafo_cidade.add_edge(pontos[pnt].get_id(), pnt_ligado.get_id(), weight=distancia_pontos * distancia_pontos)
+            grafo_cidade.add_edge(pontos[pnt].id, pnt_ligado.id, weight=distancia_pontos * distancia_pontos)
 
     for node in nx.nodes(grafo_cidade):
 
@@ -328,3 +318,7 @@ def calcula_distancia_pontos(lat_ponto1, lon_ponto1, lat_ponto2, lon_ponto2):
     coord_pnt2 = (lat_ponto2, lon_ponto2)
 
     return geopy.distance.geodesic(coord_pnt1, coord_pnt2).m
+
+
+def retorna_maior_label():
+    return Ponto.novo_label

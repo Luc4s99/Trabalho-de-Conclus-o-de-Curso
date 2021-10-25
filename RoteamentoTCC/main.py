@@ -5,8 +5,8 @@ Link do GitHub: https://github.com/SauloRicardo/TCC_Final
 
 """
 
-import util
-import nsga.nsga2 as NSGA2
+import RoteamentoTCC.util as util
+import RoteamentoTCC.nsga.nsga2 as NSGA2
 
 if __name__ == '__main__':
 
@@ -16,7 +16,7 @@ if __name__ == '__main__':
     print("")
 
     # Arquivo OSM com os dados inicias
-    '''nome_arquivo = "entrada/entrada.osm"
+    nome_arquivo = "entrada/entrada.osm"
 
     # Leitura de arquivo e geração de arquivo sem tags desnecessárias
     # Invoca função para leitura do arquivo OSM
@@ -30,10 +30,34 @@ if __name__ == '__main__':
     print("Mapeamento das ruas realizado com sucesso!")
 
     # Monta o grafo com base no mapa da cidade
-    util.monta_grafo()'''
+    # util.monta_grafo()
 
-    # TESTES NSGA-II
+    # Algoritmo NSGA-II
+
+    # Número de genes que cada cromossomo carrega
+    # O máximo de genes que um indivíduo pode carregar está relacionado a quatidade de nós no grafo da cidade
+    # Pois um indivíduo(caminhão) vai passar no máximo em todos os pontos de coleta, não contando o depósito
+    NUMERO_GENES = util.grafo_cidade.number_of_nodes() - 1
+
+    # Número de geracoes que serão percorridas
+    GERACOES = 10
+
+    # Número total de indivíduos que compõe uma população
+    TAMANHO_POPULACAO = 5
+
+    # Menor valor que um gene pode assumir ao compor o genoma
+    GENE_MINIMO = 1
+
+    # Maior valor que um gene pode assumir ao compor o genoma
+    # Esse label indica quantos pontos foram mapeados, então é gerado mais um e decrementado para se obter o total
+    # de pontos
+    GENE_MAXIMO = util.Ponto.novo_label - 1
+
+    # Capacidade média de carga de cada caminhão em quilos
+    CAPACIDADE_CAMINHAO = 9000
+
     # Cria uma instância da classe do NSGA-II
-    nsga = NSGA2.NSGA2(10, 5, 1, 10, 5, 0.9)
+    nsga = NSGA2.NSGA2(NUMERO_GENES, GERACOES, TAMANHO_POPULACAO, GENE_MINIMO, GENE_MAXIMO, 5, 0.9, CAPACIDADE_CAMINHAO)
 
+    # Roda o loop principal do NSGA2
     nsga.run()
