@@ -21,7 +21,7 @@ import geopy.distance
 # Biblioteca para plotagem de gráficos e dados em geral
 from matplotlib import pyplot as plt
 
-# TESTE
+# Parâmetros para a plotagem de imagens
 plt.rcParams['figure.figsize'] = (16, 9)
 plt.style.use('ggplot')
 
@@ -30,9 +30,6 @@ pontos = {}
 
 # Armazena em um dicionario as ruas que foram mapeadas na leitura do arquivo
 ruas = {}
-
-# Grafo que será utilizado para representar o mapa da cidade
-grafo_cidade = nx.Graph()
 
 
 def __init__(self, primeiro_vertice, ultimo_vertice):
@@ -48,6 +45,9 @@ def le_arquivo(arquivo_entrada: str):
     raiz = arvore.getroot()
     # Referencias de nós de caminhos para serem removidos
     referencias_nos = []
+
+    # ID's de ruas que serão retiradas "manualmente" para que o grafo fique melhor organizado
+    ruas_retirar_manual = ['171661658', '837763522', '844146081', '119717353', '835715874']
 
     # Lista de itens que serão removidos, esses itens não são interessantes para o trabalho
     # Ex: Rios, ferrovias, montanhas, morros, sinais de trânsito, estabelecimentos
@@ -125,7 +125,7 @@ def le_arquivo(arquivo_entrada: str):
                     v = filha_ramo.get('v')
 
                     # Se contiver alguma informação da lista de remoção, esse nó será retirado
-                    if v in remover:
+                    if v in remover or id_rua in ruas_retirar_manual:
 
                         # Marca a tag para ser removida
                         isremovida = True
@@ -150,7 +150,8 @@ def le_arquivo(arquivo_entrada: str):
                 # Seta o id da rua
                 rua.id = id_rua
 
-                for ref in referencias_nos:
+                # Percorre os nós daquele caminho
+                for ref in aux_ref:
 
                     # Verifica se o nó existe na lista de nós
                     if ref in pontos.keys():
@@ -173,13 +174,38 @@ def le_arquivo(arquivo_entrada: str):
 
                 limpar.append(ramo)
 
-                # Retira dos pontos mapeados os nós de caminhos excluídos
-                if pontos.__contains__(ramo.get('id')):
-                    pontos.pop(ramo.get('id'))
-
         # Chegando as tags de caminhos, nada mais precisa ser verificado
         if ramo.tag == 'way':
+
             break
+
+    # Verifica se alguma rua que não será retirada possui o nó analisado
+    # Se existir tal rua, o nó não poderá ser retirado
+    for _, rua in ruas.items():
+
+        # O dicionário 'ruas' contém todas as ruas que serão utilizadas e já estão validadas
+        # Então se o ponto estiver em uma dessas ruas ele já não pode ser retirado
+        for rua_ponto in rua.pontos:
+
+            # Passa por todos os nós da lista de limpeza, verificando se alguns deles compõe a rua
+            for no_limpar in limpar:
+
+                # Se identificar que algum nó está na rua
+                if no_limpar.attrib['id'] == rua_ponto.id:
+
+                    # Ele é retirado da lista de limpeza
+                    limpar.remove(no_limpar)
+
+    # Passa pela lista de pontos retirando os nós que serão limpos
+    # Como a lista 'limpar' foi verificada acima, todos os pontos que estão nessa lista com certeza serão eliminados
+    for no_limpar in limpar:
+
+        # Verifica antes se esta analisando um nó
+        if no_limpar.tag == 'node':
+
+            # Retira dos pontos mapeados os nós de caminhos excluídos e que não serão utilizados em outros caminhos
+            if pontos.__contains__(no_limpar.attrib['id']):
+                pontos.pop(no_limpar.attrib['id'])
 
     # Retira as tags do documento
     for item in limpar:
@@ -189,6 +215,54 @@ def le_arquivo(arquivo_entrada: str):
     arvore.write('saida/saida.osm')
 
     print("Arquivo de saída gerado!")
+
+
+def otimiza_grafo():
+
+    # Dicionário que armazena os pontos que restaram depois da otimização do grafo
+    pontos_otimizados = {}
+
+    # Percorre todos os nós que já foram obtidos
+    for id_ponto, ponto in pontos.items():
+
+        # Inicializa um contador para o ponto, se o mesmo aparecer mais de uma vez durante a iteração das ruas ele tem
+        # grandes chances de ser uma esquina
+        contador_ponto = 0
+
+        # Primeiramente verifica se o ponto é o final de uma rua, se for deve ser inserido
+        # O ponto que possui somente um vizinho, é considerado um final de rua
+        if len(ponto.pontos_vizinhos) == 1:
+
+            pontos_otimizados[id_ponto] = ponto
+
+        # Se o ponto não foi inserido acima, existem mais testes a serem realizados
+        if not pontos_otimizados.__contains__(ponto):
+
+            # Percorre todas as ruas, verificando se aquele ponto está contido nela
+            for id_rua, rua in ruas.items():
+
+                # Verifica cada um dos pontos da rua, se bate com o ponto sendo analisado atualmente
+                for ponto_rua in rua.pontos:
+
+                    # Verifica se o ponto é válido
+                    if ponto_rua is not None and ponto_rua.id != -1:
+
+                        # Verifica se o id dos pontos bate
+                        if ponto_rua.id == id_ponto:
+
+                            # Incrementa o contador, pois o ponto faz parte da rua
+                            contador_ponto = contador_ponto + 1
+
+                        # Verifica se o contador está maior que 1, o que indica que o ponto pode ser uma esquina
+                        if contador_ponto > 1:
+
+                            # Insere o ponto na lista de pontos otimizados
+                            pontos_otimizados[id_ponto] = ponto
+
+                            # Encerra o for, pois o ponto já está na lista de otimizados
+                            break
+
+    return pontos_otimizados
 
 
 # Função que faz a interligação dos pontos obtidos no mapa, forma as ruas e as plota
@@ -231,6 +305,7 @@ def mapeia_ruas(arquivo):
             # Ponto que está sendo analisado
             ponto_atual = Ponto(gera_label=False)
 
+            # Ponto anterior ao atual, usado para identificar vizinhos
             ponto_anterior = Ponto(gera_label=False)
 
             # Percorrendo todas as tags de atributo da tag atual
@@ -254,7 +329,11 @@ def mapeia_ruas(arquivo):
                         # Significa que existe uma ligação de pontos a ser realizada
                         if ponto_anterior.id != -1:
 
+                            # Informa que o ponto atual possui ligação com o ponto anterior
                             pontos[filha_ramo.get('ref')].realiza_ligacao(ponto_anterior)
+
+                            # E consequentemente o ponto anterior possui ligação com o ponto atual
+                            pontos[ponto_anterior.id].realiza_ligacao(ponto_atual)
 
                         ponto_anterior = ponto_atual
 
@@ -287,27 +366,102 @@ def mapeia_ruas(arquivo):
 
 
 # Função que monta o grafo que representa o mapa e o plota
-def monta_grafo():
+def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
+
+    # Grafo que será utilizado para representar o mapa da cidade
+    grafo_cidade = nx.Graph()
 
     coordenadas_pontos = {}
 
+    # Percorre todas as ruas do grafo
+    for _, rua in ruas.items():
+
+        # Percorre cada um dos pontos que forma a rua
+        for ponto_rua in rua.pontos:
+
+            # Verifica se o ponto da rua que está sendo analisado é um ponto válido
+            if ponto_rua.id in pontos_grafo.keys():
+
+                # Esta variável indica qual o index do ponto que está sendo analisado
+                index_ponto = rua.pontos.index(ponto_rua)
+
+                # Insere cada um dos pontos no grafo para que sejam plotados
+                grafo_cidade.add_node(ponto_rua.id)
+
+                # Percorre novamente todos os pontos que formam aquela rua
+                for ponto_rua_ligar in rua.pontos:
+
+                    # Porem só serão analisados pontos que estão a frente do ponto analisado atualmente
+                    # E pontos válidos
+                    if (rua.pontos.index(ponto_rua_ligar) > index_ponto) and (ponto_rua_ligar.id in pontos_grafo.keys()):
+
+                        # Se um ponto válido for encontrado para frete do que está sendo analisado
+                        if ponto_rua_ligar.id in pontos_grafo.keys():
+
+                            # Calcula a distância entre os pontos, que será utilizada como peso para a aresta
+                            distancia_pontos = calcula_distancia_pontos(ponto_rua.latitude, ponto_rua.longitude,
+                                                                        ponto_rua_ligar.latitude, ponto_rua_ligar.longitude)
+
+                            # Insere a aresta no grafo
+                            grafo_cidade.add_edge(ponto_rua.id, ponto_rua_ligar.id,
+                                                  weight=distancia_pontos * distancia_pontos)
+
+                            # Para o for, pois a ligação desse ponto já foi encontrada
+                            break
+
+    # Armazena as coordenadas dos pontos para que seja realizada a plotagem
+    for node in nx.nodes(grafo_cidade):
+        coordenadas_pontos[node] = pontos[node].retorna_coordenadas()
+
+    # Desenha a figura e salva com o nome definido
+    nx.draw(grafo_cidade, node_size=0.5, node_color='grey', alpha=0.5, with_labels=False, pos=coordenadas_pontos)
+    plt.savefig(nome_arquivo_saida, dpi=1000)
+
+    # Limpa a figura para evitar que o marplotlib se "lembre" da figura
+    plt.clf()
+
+    # Fecha a instância do pyplot para que nenhum lixo de memória seja inserido na próxima imagem
+    plt.close()
+
+
+# Função que monta o grafo que representa o mapa e o plota
+def monta_grafo(nome_arquivo):
+
+    # Grafo que será utilizado para representar o mapa da cidade
+    grafo_cidade = nx.Graph()
+
+    coordenadas_pontos = {}
+
+    # Percorre todos os pontos definidos
     for pnt in pontos:
 
+        # Insere cada um dos pontos no grafo para que sejam plotados
         grafo_cidade.add_node(pontos[pnt].id)
 
+        # Verifica cada vizinho de ponto para que sejam montadas as arestas
         for pnt_ligado in pontos[pnt].pontos_vizinhos:
 
+            # Calcula a distância entre os pontos, que será utilizada como peso para a aresta
             distancia_pontos = calcula_distancia_pontos(pontos[pnt].latitude, pontos[pnt].longitude,
                                                         pnt_ligado.latitude, pnt_ligado.longitude)
 
+            # Insere a aresta no grafo
             grafo_cidade.add_edge(pontos[pnt].id, pnt_ligado.id, weight=distancia_pontos * distancia_pontos)
 
+    # Armazena as coordenadas dos pontos para que seja realizada a plotagem
     for node in nx.nodes(grafo_cidade):
 
         coordenadas_pontos[node] = pontos[node].retorna_coordenadas()
 
+    # Desenha a figura e salva com o nome definido
     nx.draw(grafo_cidade, node_size=0.5, node_color='grey', alpha=0.5, with_labels=False, pos=coordenadas_pontos)
-    plt.savefig("saida/GrafoCidade.png", dpi=1000)
+    plt.savefig(nome_arquivo, dpi=1000)
+
+    # Limpa a figura para evitar que o marplotlib se "lembre" da figura
+    plt.clf()
+
+    # Fecha a instância do pyplot para que nenhum lixo de memória seja inserido na próxima imagem
+    plt.close()
 
 
 # Função que calcula a distância entre dois pontos, utilizando a função pronta da biblioteca geopy

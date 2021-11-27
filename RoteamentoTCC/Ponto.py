@@ -20,7 +20,7 @@ class Ponto:
         # Longitude que localiza o ponto
         self.longitude = 0
 
-        # Lista dos pontos aos quais este ponto tem ligação
+        # Lista de objetos Pontos, referenciando os pontos aos quais este ponto tem ligação
         self.pontos_vizinhos = []
 
         # Gera um label somente para os pontos que forem mapeados
