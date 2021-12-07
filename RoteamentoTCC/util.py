@@ -374,7 +374,7 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
     coordenadas_pontos = {}
 
     # Percorre todas as ruas do grafo
-    for _, rua in ruas.items():
+    for rua_id, rua in ruas.items():
 
         # Percorre cada um dos pontos que forma a rua
         for ponto_rua in rua.pontos:
@@ -398,9 +398,8 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
                         # Se um ponto válido for encontrado para frete do que está sendo analisado
                         if ponto_rua_ligar.id in pontos_grafo.keys():
 
-                            # Calcula a distância entre os pontos, que será utilizada como peso para a aresta
-                            distancia_pontos = calcula_distancia_pontos(ponto_rua.latitude, ponto_rua.longitude,
-                                                                        ponto_rua_ligar.latitude, ponto_rua_ligar.longitude)
+                            # Função que calcula
+                            distancia_pontos = calcula_distancia_real(rua_id, ponto_rua, ponto_rua_ligar)
 
                             # Insere a aresta no grafo
                             grafo_cidade.add_edge(ponto_rua.id, ponto_rua_ligar.id,
@@ -422,6 +421,44 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
 
     # Fecha a instância do pyplot para que nenhum lixo de memória seja inserido na próxima imagem
     plt.close()
+
+
+# Função que calcula a distância real entre dois pontos de uma rua
+# A distância real neste caso, é a distância considerando todos os pontos da rua, até os pontos que foram retirados pela
+# otimização
+def calcula_distancia_real(rua_id, ponto_inicial, ponto_final):
+
+    # Obtem a rua do dicionário de ruas
+    rua = ruas[rua_id]
+
+    # Inicia a variável que aramzena a distância total entre os pontos
+    distancia_total_pts = 0
+
+    # Indica que o ponto inicial foi encontrado e que as distâncias podem começar a serem somadas
+    achou_ponto_inicial = False
+
+    # Percorre todos os pontos da rua, até achar o ponto inicial
+    for ponto_rua in rua.pontos:
+
+        # Verifica se o ponto corresponde ao ponto inicial
+        if ponto_rua.id == ponto_inicial.id:
+
+            achou_ponto_inicial = True
+
+        # Se o ponto inicial foi encontrado, as distâncias podem ser somadas
+        if achou_ponto_inicial:
+
+            # Vai adicionando as distâncias até o próximo ponto a distância total final
+            distancia_total_pts += calcula_distancia_pontos(ponto_inicial.latitude, ponto_inicial.longitude,
+                                                            ponto_rua.latitude, ponto_rua.longitude)
+
+            # Se o ponto sendo analisado atualmente for o ponto final, então deve ser parada a iteração
+            if ponto_rua.id == ponto_final.id:
+
+                break
+
+    # Retorna a distância total
+    return distancia_total_pts
 
 
 # Função que monta o grafo que representa o mapa e o plota
