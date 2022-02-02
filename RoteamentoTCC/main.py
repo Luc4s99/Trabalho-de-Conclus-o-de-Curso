@@ -34,10 +34,21 @@ if __name__ == '__main__':
 
     print("Grafo da cidade gerado com sucesso!")
 
+    # Monta o dicionário com os pontos otimizados
+    util.otimiza_grafo()
+
     # Monta um grafo otimizado, que contém apenas pontos de maior interesse
-    util.monta_grafo_otimizado(util.otimiza_grafo(), "saida/GrafoCidadeOtimizado.png")
+    util.monta_grafo_otimizado(util.pontos_otimizados, "saida/GrafoCidadeOtimizado.png")
 
     print("Grafo otimizado da cidade gerado com sucesso!")
+
+    # Gera as demandas aproximadas das ruas
+    util.calcula_demandas()
+
+    print("Demandas de lixo aproximadas das ruas calculadas!")
+
+    # Realiza o agrupamento dos pontos por meio do k-means
+    util.k_means()
 
     # Algoritmo NSGA-II
 

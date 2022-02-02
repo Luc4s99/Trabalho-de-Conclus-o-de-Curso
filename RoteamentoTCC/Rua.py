@@ -14,13 +14,16 @@ class Rua:
         self.longitude = 0
 
         # Quantidade de lixo em quilos que aquela rua possui
-        self.quantidade_lixo = 0
+        self.quantidade_lixo_rua = 0
 
         # Lista de objetos Ponto que indica os pontos que formam a rua
         self.pontos = []
 
         # Nome da rua
         self.nome = ""
+
+        # Tamanho total da rua
+        self.tamanho_rua = 0
 
     # Insere um ponto na lista de pontos que formam a rua
     def insere_ponto(self, ponto):

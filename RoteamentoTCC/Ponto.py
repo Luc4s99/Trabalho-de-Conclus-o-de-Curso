@@ -23,6 +23,12 @@ class Ponto:
         # Lista de objetos Pontos, referenciando os pontos aos quais este ponto tem ligação
         self.pontos_vizinhos = []
 
+        # Quantidade de lixo que o ponto possui
+        self.quantidade_lixo = 0
+
+        # Identificador do ponto nos agrupamentos realizados pelo k-means
+        self.id_agrupamento = -1
+
         # Gera um label somente para os pontos que forem mapeados
         # Isso será usado depois para verificar quantos pontos foram mapeados
         if gera_label:

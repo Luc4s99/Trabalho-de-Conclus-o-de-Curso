@@ -20,6 +20,12 @@ import networkx as nx
 import geopy.distance
 # Biblioteca para plotagem de gráficos e dados em geral
 from matplotlib import pyplot as plt
+# Biblioteca que contém úteis matemáticos
+import numpy as np
+# Biblioteca para a realização do agrupamento dos pontos
+from sklearn.cluster import KMeans
+# Biblioteca para limpeza de lixo de memória(garbage collector)
+import gc
 
 # Parâmetros para a plotagem de imagens
 plt.rcParams['figure.figsize'] = (16, 9)
@@ -28,11 +34,17 @@ plt.style.use('ggplot')
 # Armazena em um dicionario os pontos que foram mapeados na leitura do arquivo
 pontos = {}
 
+# Dicionário que armazena os pontos que restaram depois da otimização do grafo
+pontos_otimizados = {}
+
 # Armazena em um dicionario as ruas que foram mapeadas na leitura do arquivo
 ruas = {}
 
+# Grafo que será utilizado para representar o mapa da cidade já otimizado
+grafo_cidade_otimizado = nx.Graph()
 
-def __init__(self, primeiro_vertice, ultimo_vertice):
+
+def __init__():
     pass
 
 
@@ -219,9 +231,6 @@ def le_arquivo(arquivo_entrada: str):
 
 def otimiza_grafo():
 
-    # Dicionário que armazena os pontos que restaram depois da otimização do grafo
-    pontos_otimizados = {}
-
     # Percorre todos os nós que já foram obtidos
     for id_ponto, ponto in pontos.items():
 
@@ -261,8 +270,6 @@ def otimiza_grafo():
 
                             # Encerra o for, pois o ponto já está na lista de otimizados
                             break
-
-    return pontos_otimizados
 
 
 # Função que faz a interligação dos pontos obtidos no mapa, forma as ruas e as plota
@@ -368,9 +375,6 @@ def mapeia_ruas(arquivo):
 # Função que monta o grafo que representa o mapa e o plota
 def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
 
-    # Grafo que será utilizado para representar o mapa da cidade
-    grafo_cidade = nx.Graph()
-
     coordenadas_pontos = {}
 
     # Percorre todas as ruas do grafo
@@ -386,7 +390,7 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
                 index_ponto = rua.pontos.index(ponto_rua)
 
                 # Insere cada um dos pontos no grafo para que sejam plotados
-                grafo_cidade.add_node(ponto_rua.id)
+                grafo_cidade_otimizado.add_node(ponto_rua.id)
 
                 # Percorre novamente todos os pontos que formam aquela rua
                 for ponto_rua_ligar in rua.pontos:
@@ -402,25 +406,29 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
                             distancia_pontos = calcula_distancia_real(rua_id, ponto_rua, ponto_rua_ligar)
 
                             # Insere a aresta no grafo
-                            grafo_cidade.add_edge(ponto_rua.id, ponto_rua_ligar.id,
-                                                  weight=distancia_pontos * distancia_pontos)
+                            grafo_cidade_otimizado.add_edge(ponto_rua.id, ponto_rua_ligar.id,
+                                                            weight=distancia_pontos * distancia_pontos)
 
                             # Para o for, pois a ligação desse ponto já foi encontrada
                             break
 
     # Armazena as coordenadas dos pontos para que seja realizada a plotagem
-    for node in nx.nodes(grafo_cidade):
+    for node in nx.nodes(grafo_cidade_otimizado):
         coordenadas_pontos[node] = pontos[node].retorna_coordenadas()
 
     # Desenha a figura e salva com o nome definido
-    nx.draw(grafo_cidade, node_size=0.5, node_color='grey', alpha=0.5, with_labels=False, pos=coordenadas_pontos)
-    plt.savefig(nome_arquivo_saida, dpi=1000)
+    nx.draw(grafo_cidade_otimizado, node_size=0.5, node_color='grey', alpha=0.5, with_labels=False,
+            pos=coordenadas_pontos)
+    plt.savefig(nome_arquivo_saida, dpi=500)
 
     # Limpa a figura para evitar que o marplotlib se "lembre" da figura
     plt.clf()
 
     # Fecha a instância do pyplot para que nenhum lixo de memória seja inserido na próxima imagem
     plt.close()
+
+    # Realiza a coleta de lixo de memória
+    gc.collect()
 
 
 # Função que calcula a distância real entre dois pontos de uma rua
@@ -457,6 +465,10 @@ def calcula_distancia_real(rua_id, ponto_inicial, ponto_final):
 
                 break
 
+    # Adiciona o tamanho do segmento de rua calculado, ao total da rua
+    # Ao final de todas as iteraçãoes dessa função, todas as ruas terão seus tamanhos totais já calculados
+    rua.tamanho_rua += distancia_total_pts
+
     # Retorna a distância total
     return distancia_total_pts
 
@@ -492,13 +504,74 @@ def monta_grafo(nome_arquivo):
 
     # Desenha a figura e salva com o nome definido
     nx.draw(grafo_cidade, node_size=0.5, node_color='grey', alpha=0.5, with_labels=False, pos=coordenadas_pontos)
-    plt.savefig(nome_arquivo, dpi=1000)
+    plt.savefig(nome_arquivo, dpi=500)
 
     # Limpa a figura para evitar que o marplotlib se "lembre" da figura
     plt.clf()
 
     # Fecha a instância do pyplot para que nenhum lixo de memória seja inserido na próxima imagem
     plt.close()
+
+    # Realiza a coleta de lixo de memória
+    gc.collect()
+
+
+# Função que calcula a demanda aproximada de lixo de cada rua e divide entre seus pontos
+def calcula_demandas():
+
+    # Passa por todas as ruas
+    for _, rua in ruas.items():
+
+        # Gera a demanda de lixo aproximada da rua
+        # Para a geração da demanda utiliza a distribuição de Weibull, que é uma distribuição de cauda longa
+        # O parâmetro 10 é o tamanho médio de lote de casa para a cidade analisada, logo o tamanho da rua / 10 resulta
+        # no total de casas aproximado que aquela rua contém
+        # Multiplicado por 2 pois os dois lados da rua possuem casas
+        # Isso é multiplicado por 3 pois, a média de pessoas por família é de 3 e a média de produção de lixo por pessoa
+        # é de 1kg
+        rua.quantidade_lixo_rua = int((np.random.weibull(5.) * rua.tamanho_rua / 10) * 2) * 3
+
+        # Divide de forma uniforme entre os pontos da rua a quantidade de lixo estimada
+        qtd_lixo_ponto = rua.quantidade_lixo_rua / len(rua.pontos)
+
+        # Percorre todos os pontos da rua atribuindo a quantidade de lixo
+        for ponto in rua.pontos:
+
+            ponto.quantidade_lixo = qtd_lixo_ponto
+
+
+# Função que realiza o agrupamento de pontos próximos
+def k_means():
+
+    # Define o número de clusters
+    # Esse número representa o número aproximado de bairros na cidade de Formiga/MG
+    numero_clusters = 20
+
+    # Monta a matriz com as coordenadas
+    matriz = []
+
+    # Passa por todos os pontos otimizados
+    for _, ponto in pontos_otimizados.items():
+
+        # Insere as coordenadas na matriz
+        matriz.append([float(ponto.latitude), float(ponto.longitude)])
+
+    # Cria o array pela biblioteca do numpy
+    coordenadas_pontos = np.array(matriz)
+
+    # Realiza uma instância do algoritmo do kmeans
+    kmeans = KMeans(numero_clusters, init='k-means++', n_init=10, max_iter=300)
+
+    # Executa o kmeans para encontrar a localização que devem ficar os depósitos
+    pred_y = kmeans.fit_predict(coordenadas_pontos)
+
+    # Associa o dicionário de pontos aos seus respectivos agrupamentos
+    for cont, ponto in enumerate(pontos_otimizados.values()):
+
+        # Verifica antes se o ponto já não está associado a um agrupamento
+        if ponto.id_agrupamento == -1:
+
+            ponto.id_agrupamento = pred_y[cont]
 
 
 # Função que calcula a distância entre dois pontos, utilizando a função pronta da biblioteca geopy
