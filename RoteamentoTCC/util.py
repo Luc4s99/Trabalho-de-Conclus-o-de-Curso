@@ -43,6 +43,11 @@ ruas = {}
 # Grafo que será utilizado para representar o mapa da cidade já otimizado
 grafo_cidade_otimizado = nx.Graph()
 
+# ID's de pontos que serão retirados "manualmente" para que o NSGA-II seja melhor calibrado
+pontos_retirar_manual = ['2386701666', '2386701653', '353461444', '8256516317', '1344105186', '2386701633',
+                         '7105572020', '8405717762', '5420412669', '353460735', '1344104828', '1826545975',
+                         '4055552318', '5420412934', '7802750044', '3545678179', '4055552327', '7872173741']
+
 
 def __init__():
     pass
@@ -237,6 +242,11 @@ def otimiza_grafo():
         # Inicializa um contador para o ponto, se o mesmo aparecer mais de uma vez durante a iteração das ruas ele tem
         # grandes chances de ser uma esquina
         contador_ponto = 0
+
+        # Verifica antes se o ponto é um dos que deve ser retirado "manualmente"
+        if id_ponto in pontos_retirar_manual:
+
+            continue
 
         # Primeiramente verifica se o ponto é o final de uma rua, se for deve ser inserido
         # O ponto que possui somente um vizinho, é considerado um final de rua
