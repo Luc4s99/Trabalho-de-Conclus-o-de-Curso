@@ -43,7 +43,7 @@ if __name__ == '__main__':
     print("Grafo otimizado da cidade gerado com sucesso!")
 
     # Gera as demandas aproximadas das ruas
-    util.calcula_demandas()
+    util.calcula_demandas("saida/GrafoCidadeDemandas.png")
 
     print("Demandas de lixo aproximadas das ruas calculadas!")
 

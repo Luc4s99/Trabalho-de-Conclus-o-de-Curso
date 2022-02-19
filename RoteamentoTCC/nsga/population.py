@@ -48,8 +48,6 @@ class Population:
                 genome.append(genotype)
 
                 # Verifica se o novo gene não excedeu a capacidade do indivíduo
-                # TODO Excluir pontos desnecessários para a geração das demandas de lixo
-                # TODO Utilizar o k-means para o agrupamento dos pontos
                 # TODO Terminar a geração do indivíduo e o cálculo da quantidade de lixo da rota do mesmo
                 if self.calcula_quantidade_lixo(genome) > self.capacidade_caminhao:
 

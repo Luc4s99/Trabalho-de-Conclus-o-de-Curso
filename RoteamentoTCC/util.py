@@ -43,6 +43,9 @@ ruas = {}
 # Grafo que será utilizado para representar o mapa da cidade já otimizado
 grafo_cidade_otimizado = nx.Graph()
 
+# Identifica o id ponto que representa o depósito
+DEPOSITO = '3627233002'
+
 # ID's de pontos que serão retirados "manualmente" para que o NSGA-II seja melhor calibrado
 pontos_retirar_manual = ['2386701666', '2386701653', '353461444', '8256516317', '1344105186', '2386701633',
                          '7105572020', '8405717762', '5420412669', '353460735', '1344104828', '1826545975',
@@ -409,15 +412,15 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
                     # E pontos válidos
                     if (rua.pontos.index(ponto_rua_ligar) > index_ponto) and (ponto_rua_ligar.id in pontos_grafo.keys()):
 
-                        # Se um ponto válido for encontrado para frete do que está sendo analisado
+                        # Se um ponto válido for encontrado para frente do que está sendo analisado
                         if ponto_rua_ligar.id in pontos_grafo.keys():
 
-                            # Função que calcula
+                            # Função que calcula a distância entre os pontos
                             distancia_pontos = calcula_distancia_real(rua_id, ponto_rua, ponto_rua_ligar)
 
                             # Insere a aresta no grafo
                             grafo_cidade_otimizado.add_edge(ponto_rua.id, ponto_rua_ligar.id,
-                                                            weight=distancia_pontos * distancia_pontos)
+                                                            weight=distancia_pontos)
 
                             # Para o for, pois a ligação desse ponto já foi encontrada
                             break
@@ -505,7 +508,7 @@ def monta_grafo(nome_arquivo):
                                                         pnt_ligado.latitude, pnt_ligado.longitude)
 
             # Insere a aresta no grafo
-            grafo_cidade.add_edge(pontos[pnt].id, pnt_ligado.id, weight=distancia_pontos * distancia_pontos)
+            grafo_cidade.add_edge(pontos[pnt].id, pnt_ligado.id, weight=distancia_pontos)
 
     # Armazena as coordenadas dos pontos para que seja realizada a plotagem
     for node in nx.nodes(grafo_cidade):
@@ -527,7 +530,7 @@ def monta_grafo(nome_arquivo):
 
 
 # Função que calcula a demanda aproximada de lixo de cada rua e divide entre seus pontos
-def calcula_demandas():
+def calcula_demandas(nome_arquivo):
 
     # Passa por todas as ruas
     for _, rua in ruas.items():
@@ -547,7 +550,64 @@ def calcula_demandas():
         # Percorre todos os pontos da rua atribuindo a quantidade de lixo
         for ponto in rua.pontos:
 
+            # Se o ponto analisado for o próprio depósito, não será atribuída demanda de lixo para ele
+            if ponto.id == DEPOSITO:
+
+                continue
+
             ponto.quantidade_lixo = qtd_lixo_ponto
+
+    coordenadas_pontos = {}
+
+    # Armazena as coordenadas dos pontos para que seja realizada a plotagem
+    for node in nx.nodes(grafo_cidade_otimizado):
+        coordenadas_pontos[node] = pontos[node].retorna_coordenadas()
+
+    # Após gerar as demandas será printado o grafo com novos dados
+    # Cores que serão utilizadas nos nós
+    cores = []
+    # Tamanho dos nós que serão plotados no grafo
+    tamanhos = []
+
+    # Percorre os nós para adicionar informações nas duas listas acima
+    for node in grafo_cidade_otimizado:
+
+        # Se o nó for o depósito, recebe uma coloração e tamanho único
+        if node == DEPOSITO:
+
+            cores.append('blue')
+            tamanhos.append(20)
+        # Senão, as cores e tamanhos serão definidos a partir da quantidade de lixo que aquele ponto possui
+        else:
+
+            qtd_lixo = pontos_otimizados.get(node).quantidade_lixo
+
+            if qtd_lixo <= 10:
+
+                cores.append('green')
+                tamanhos.append(2)
+            elif 10 < qtd_lixo <= 20:
+
+                cores.append('yellow')
+                tamanhos.append(5)
+            else:
+
+                cores.append('red')
+                tamanhos.append(10)
+
+    # Desenha a figura e salva com o nome, cores e tamanho definidos
+    nx.draw(grafo_cidade_otimizado, node_size=tamanhos, node_color=cores, alpha=0.5, with_labels=False,
+            pos=coordenadas_pontos)
+    plt.savefig(nome_arquivo, dpi=500)
+
+    # Limpa a figura para evitar que o marplotlib se "lembre" da figura
+    plt.clf()
+
+    # Fecha a instância do pyplot para que nenhum lixo de memória seja inserido na próxima imagem
+    plt.close()
+
+    # Realiza a coleta de lixo de memória
+    gc.collect()
 
 
 # Função que realiza o agrupamento de pontos próximos
@@ -563,6 +623,11 @@ def k_means():
     # Passa por todos os pontos otimizados
     for _, ponto in pontos_otimizados.items():
 
+        # Garante que o depósito não será levado em conta no agrupamento
+        if ponto.id == DEPOSITO:
+
+            continue
+
         # Insere as coordenadas na matriz
         matriz.append([float(ponto.latitude), float(ponto.longitude)])
 
@@ -576,12 +641,24 @@ def k_means():
     pred_y = kmeans.fit_predict(coordenadas_pontos)
 
     # Associa o dicionário de pontos aos seus respectivos agrupamentos
-    for cont, ponto in enumerate(pontos_otimizados.values()):
+    cont = 0
+
+    for ponto in pontos_otimizados.values():
+
+        # Ignora o depósito
+        if ponto.id == DEPOSITO:
+
+            # Decrementa o contador para compensar o ponto ignorado
+            cont -= 1
+            continue
 
         # Verifica antes se o ponto já não está associado a um agrupamento
         if ponto.id_agrupamento == -1:
 
             ponto.id_agrupamento = pred_y[cont]
+
+        # Incrementa o contador
+        cont += 1
 
 
 # Função que calcula a distância entre dois pontos, utilizando a função pronta da biblioteca geopy
