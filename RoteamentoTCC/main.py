@@ -48,8 +48,11 @@ if __name__ == '__main__':
     print("Demandas de lixo aproximadas das ruas calculadas!")
 
     # Realiza o agrupamento dos pontos por meio do k-means
-    util.k_means()
+    agrupamentos = util.k_means()
 
+    print("Agrupamentos gerados com sucesso!")
+
+    # Após realizados os agrupamentos
     # Algoritmo NSGA-II
 
     # Número de genes que cada cromossomo carrega

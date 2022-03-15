@@ -46,10 +46,16 @@ grafo_cidade_otimizado = nx.Graph()
 # Identifica o id ponto que representa o depósito
 DEPOSITO = '3627233002'
 
+# Capacidade de lixo que um caminhão de lixo possuiem KG
+CAPACIDADE_CAMINHAO = 10000
+
 # ID's de pontos que serão retirados "manualmente" para que o NSGA-II seja melhor calibrado
 pontos_retirar_manual = ['2386701666', '2386701653', '353461444', '8256516317', '1344105186', '2386701633',
                          '7105572020', '8405717762', '5420412669', '353460735', '1344104828', '1826545975',
                          '4055552318', '5420412934', '7802750044', '3545678179', '4055552327', '7872173741']
+
+# Quantidade total de lixo que foi gerada na cidade
+quantidade_lixo_cidade = 0
 
 
 def __init__():
@@ -532,6 +538,9 @@ def monta_grafo(nome_arquivo):
 # Função que calcula a demanda aproximada de lixo de cada rua e divide entre seus pontos
 def calcula_demandas(nome_arquivo):
 
+    # Identifica a variável global que armazena a quantidade de lixo total gerada na cidade
+    global quantidade_lixo_cidade
+
     # Passa por todas as ruas
     for _, rua in ruas.items():
 
@@ -543,6 +552,9 @@ def calcula_demandas(nome_arquivo):
         # Isso é multiplicado por 3 pois, a média de pessoas por família é de 3 e a média de produção de lixo por pessoa
         # é de 1kg
         rua.quantidade_lixo_rua = int((np.random.weibull(5.) * rua.tamanho_rua / 10) * 2) * 3
+
+        # A quantidade total de lixo da cidade é incrementada
+        quantidade_lixo_cidade += rua.quantidade_lixo_rua
 
         # Divide de forma uniforme entre os pontos da rua a quantidade de lixo estimada
         qtd_lixo_ponto = rua.quantidade_lixo_rua / len(rua.pontos)
@@ -614,8 +626,8 @@ def calcula_demandas(nome_arquivo):
 def k_means():
 
     # Define o número de clusters
-    # Esse número representa o número aproximado de bairros na cidade de Formiga/MG
-    numero_clusters = 20
+    # Definido pela quantidade total de lixo gerada dividida pela capacidade de um caminhão
+    numero_clusters = round(quantidade_lixo_cidade / CAPACIDADE_CAMINHAO)
 
     # Monta a matriz com as coordenadas
     matriz = []
@@ -637,7 +649,7 @@ def k_means():
     # Realiza uma instância do algoritmo do kmeans
     kmeans = KMeans(numero_clusters, init='k-means++', n_init=10, max_iter=300)
 
-    # Executa o kmeans para encontrar a localização que devem ficar os depósitos
+    # Executa o kmeans para encontrar a localização que devem ficar os agrupamentos
     pred_y = kmeans.fit_predict(coordenadas_pontos)
 
     # Associa o dicionário de pontos aos seus respectivos agrupamentos
@@ -645,11 +657,9 @@ def k_means():
 
     for ponto in pontos_otimizados.values():
 
-        # Ignora o depósito
+        # Pula o depósito pois ele foi ignorado ao fazer os agrupamentos
         if ponto.id == DEPOSITO:
 
-            # Decrementa o contador para compensar o ponto ignorado
-            cont -= 1
             continue
 
         # Verifica antes se o ponto já não está associado a um agrupamento
@@ -659,6 +669,19 @@ def k_means():
 
         # Incrementa o contador
         cont += 1
+
+    # Gera uma imagem dos agrupamentos gerados pelo k-means
+    # Utilizada somente para testes
+    plt.scatter(coordenadas_pontos[:, 1], coordenadas_pontos[:, 0], c=pred_y)
+
+    plt.grid()
+
+    plt.scatter(kmeans.cluster_centers_[:, 1], kmeans.cluster_centers_[:, 0], s=70, c='red', )
+
+    plt.show()
+
+    # Retorna os dados do agrupamento
+    return kmeans
 
 
 # Função que calcula a distância entre dois pontos, utilizando a função pronta da biblioteca geopy
