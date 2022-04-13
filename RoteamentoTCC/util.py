@@ -26,6 +26,8 @@ import numpy as np
 from sklearn.cluster import KMeans
 # Biblioteca para limpeza de lixo de memória(garbage collector)
 import gc
+# Classe que define e executa o Non-dominated Sorting Genetic Algorithm II
+import RoteamentoTCC.nsga.nsga2 as NSGA2
 
 # Parâmetros para a plotagem de imagens
 plt.rcParams['figure.figsize'] = (16, 9)
@@ -44,10 +46,9 @@ ruas = {}
 grafo_cidade_otimizado = nx.Graph()
 
 # Identifica o id ponto que representa o depósito
-DEPOSITO = '3627233002'
-
-# Capacidade de lixo que um caminhão de lixo possuiem KG
-CAPACIDADE_CAMINHAO = 10000
+# DEPOSITO = '3627233002'
+# Identificador do depósito no arquivo utilizado para testes(Somente para testes)
+DEPOSITO = '7560818573'
 
 # ID's de pontos que serão retirados "manualmente" para que o NSGA-II seja melhor calibrado
 pontos_retirar_manual = ['2386701666', '2386701653', '353461444', '8256516317', '1344105186', '2386701633',
@@ -431,6 +432,14 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
                             # Para o for, pois a ligação desse ponto já foi encontrada
                             break
 
+    # Após o grafo montado, realiza o cálculo de distância de todos os pontos até o depósito
+    # for ponto in grafo_cidade_otimizado.nodes:
+    for ponto in pontos_otimizados.values():
+
+        # Pega o ponto atual e realiza o cálculo através do algoritmo de dijkstra até o depósito
+        # Essa distância é armazenada no próprio ponto
+        ponto.distancia_deposito = nx.dijkstra_path_length(grafo_cidade_otimizado, ponto.id, DEPOSITO)
+        
     # Armazena as coordenadas dos pontos para que seja realizada a plotagem
     for node in nx.nodes(grafo_cidade_otimizado):
         coordenadas_pontos[node] = pontos[node].retorna_coordenadas()
@@ -623,11 +632,12 @@ def calcula_demandas(nome_arquivo):
 
 
 # Função que realiza o agrupamento de pontos próximos
-def k_means():
+def k_means(CAPACIDADE_CAMINHAO):
 
     # Define o número de clusters
     # Definido pela quantidade total de lixo gerada dividida pela capacidade de um caminhão
-    numero_clusters = round(quantidade_lixo_cidade / CAPACIDADE_CAMINHAO)
+    #numero_clusters = round(quantidade_lixo_cidade / CAPACIDADE_CAMINHAO)
+    numero_clusters = 5
 
     # Monta a matriz com as coordenadas
     matriz = []
@@ -652,9 +662,14 @@ def k_means():
     # Executa o kmeans para encontrar a localização que devem ficar os agrupamentos
     pred_y = kmeans.fit_predict(coordenadas_pontos)
 
+    # Dicionário que agrupa os pontos com base nos seus respectivos agrupamentos
+    pontos_agrupados = {}
+
     # Associa o dicionário de pontos aos seus respectivos agrupamentos
     cont = 0
 
+    # Nesse loop cada ponto será identificado com seu respectivo agrupamento
+    # E também serão organizados os pontos com o mesmo agrupamento
     for ponto in pontos_otimizados.values():
 
         # Pula o depósito pois ele foi ignorado ao fazer os agrupamentos
@@ -667,22 +682,44 @@ def k_means():
 
             ponto.id_agrupamento = pred_y[cont]
 
+            # Se o dicionário que agrupa os pontos ainda não tiver aquela chave
+            # Significa que nenhum ponto daquele cluster foi inserido ainda
+            if ponto.id_agrupamento not in pontos_agrupados.keys():
+
+                # Insere a chave do cluster e o seu respectivo ponto
+                pontos_agrupados[ponto.id_agrupamento] = [ponto]
+            else:
+
+                # Senão o agrupamento já existe no dicionário
+                # Então o ponto é simplesmente inserido
+                pontos_agrupados[ponto.id_agrupamento].append(ponto)
+
         # Incrementa o contador
         cont += 1
 
     # Gera uma imagem dos agrupamentos gerados pelo k-means
     # Utilizada somente para testes
-    plt.scatter(coordenadas_pontos[:, 1], coordenadas_pontos[:, 0], c=pred_y)
+    """plt.scatter(coordenadas_pontos[:, 1], coordenadas_pontos[:, 0], c=pred_y)
 
     plt.grid()
 
     plt.scatter(kmeans.cluster_centers_[:, 1], kmeans.cluster_centers_[:, 0], s=70, c='red', )
 
-    plt.show()
+    plt.show()"""
 
-    # Retorna os dados do agrupamento
-    return kmeans
+    # Retorna os pontos divididos pelos agrupamentos
+    return pontos_agrupados
 
+
+# Função que realiza o processamento das rotas nos agrupamentos gerados
+def processamento_rotas(pontos_agrupados, capacidade_caminhao):
+
+    # Realiza o processamento de rota para cada um dos clusters
+    # Em cada um deles é executado o NSGA-II
+    for id_cluster, cluster in pontos_agrupados.items():
+
+        pass
+        
 
 # Função que calcula a distância entre dois pontos, utilizando a função pronta da biblioteca geopy
 def calcula_distancia_pontos(lat_ponto1, lon_ponto1, lat_ponto2, lon_ponto2):

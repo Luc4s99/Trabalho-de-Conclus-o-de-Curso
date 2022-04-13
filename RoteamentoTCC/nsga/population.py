@@ -3,6 +3,9 @@
 Este código possui partes desenvolvidas ou baseadas em código desenvolvido por Thales Otávio
 Link do GitHub: https://github.com/thalesorp/NSGA-II
 
+E também possui partes desenvolvidas e baseadas em código desenvolvido por Mateus Soares
+Link do GitHub: https://github.com/MateusSoares/Wireless-Access-Point-Optimization
+
 """
 
 import sys
@@ -14,61 +17,75 @@ from .individual import Individual
 class Population:
     """Class of population of indiviuals, used by NSGA-II"""
 
-    def __init__(self, genotype_quantity, genome_min_value, genome_max_value, capacidade_caminhao):
+    def __init__(self, genome_values, pontos_grafo, capacidade_caminhao):
 
+        # Semente para geração de valores aleatórios
         random.seed()
-
-        # Size of genome list
-        self.genotype_quantity = genotype_quantity
-
-        self.genome_min_value = genome_min_value
-        self.genome_max_value = genome_max_value
 
         self.size = 0
 
-        self.individuals = list()
+        # Lista com os valores válidos de gene que aquele genoma pode conter
+        self.genome_values = genome_values
 
-        # Capacidade do caminhao em quilos
+        # Dicionário de pontos que representam os locais de coleta e suas informações
+        self.pontos_grafo = pontos_grafo
+
+        # Capacidade em kg do caminhão de coleta
         self.capacidade_caminhao = capacidade_caminhao
 
-    def initiate(self, n_individuals):
-        """Initialize a new population"""
+        self.individuals = list()
 
+        self.fronts = list()
+
+    # Método que gera os indivíduos da população
+    def initiate(self, n_individuals):
+
+        # Itera sobre o número de indivíduos que presica ser gerado
         for _ in range(n_individuals):
 
             # Lista de inteiros que representa o genoma do indivíduo
-
             genome = list()
 
-            # Gera um novo indivíduo, sempre verificando se a quantodade de lixo não estourou o limite
-            while len(genome) <= self.genotype_quantity:
+            # Adiciona genes ao indivíduo de forma aleatória
+            while len(genome) != len(self.genome_values):
 
-                genotype = random.randrange(self.genome_min_value, self.genome_max_value + 1)
+                # Seleciona o próximo gene para compor o genoma
+                genotype = random.choice(self.genome_values)
 
-                genome.append(genotype)
+                # Se a quantidade de lixo no ponto é 0, significa que algum caminhão já passou por ali
+                while self.pontos_grafo[genotype].quantidade_lixo == 0:
+
+                    # Seleciona algum outro ponto
+                    genotype = random.choice(self.genome_values)
 
                 # Verifica se o novo gene não excedeu a capacidade do indivíduo
-                # TODO Terminar a geração do indivíduo e o cálculo da quantidade de lixo da rota do mesmo
                 if self.calcula_quantidade_lixo(genome) > self.capacidade_caminhao:
 
-                    # Remove o último gene que sobrecarregou a rota
-                    genome.remove(len(genome))
-
-                    # Encerra o loop
                     break
+                else:
+
+                    # Insere o gene válido no genoma
+                    genome.append(genotype)
+                    self.pontos_grafo[genotype].quantidade_lixo = 0
 
             self.new_individual(genome)
 
+    # Calcula a quantidade de lixo de um determinado indivíduo carrega
     def calcula_quantidade_lixo(self, genoma):
-        """Calcula a quantidade de lixo de um determinado genoma e a retorna"""
+
+        quantidade_lixo = 0
 
         # Verifica se o genoma está vazio, se estiver a quantidade de lixo é 0
-        if len(genoma) == 0:
+        if len(genoma) != 0:
 
-            return 0
+            for gene in genoma:
 
+                quantidade_lixo += self.pontos_grafo[gene].quantidade_lixo
+
+        return quantidade_lixo
+
+    # Cria um novo indivíduo e insere na população
     def new_individual(self, genome):
-        """Create a new individual with "genome" and insert into population"""
 
         self.insert(Individual(genome))
 
@@ -90,9 +107,7 @@ class Population:
         for individual in population.individuals:
             self.insert(individual)
 
-    # Front utils
     def reset_fronts(self):
-        """Delete all fronts and prepare the population to be sorted in fronts"""
 
         for individual in self.individuals:
             individual.domination_count = 0
@@ -101,7 +116,6 @@ class Population:
         self.fronts = list()
 
     def new_front(self):
-        """Start a new front"""
 
         self.fronts.append([])
 
@@ -113,7 +127,6 @@ class Population:
         return self.individuals[index]
 
     def add_to_front(self, index, individual):
-        """Add the individual into "index" front"""
 
         self.fronts[index].append(individual)
 
@@ -123,12 +136,10 @@ class Population:
         return len(self.fronts)-1
 
     def add_to_last_front(self, individual):
-        """Add individual to last front"""
 
         self.fronts[self.get_last_front_index()].append(individual)
 
     def get_last_front(self):
-        """Return the last front"""
 
         return self.fronts[len(self.fronts)-1]
 
@@ -143,11 +154,11 @@ class Population:
         self.delete_individual(individual)
 
     def delete_last_front(self):
-        """Deleting the last front and the individuals inside"""
 
         last_front = self.get_last_front()
 
         for individual in last_front:
+
             self.delete_individual(individual)
 
         self.fronts.remove(last_front)
@@ -175,7 +186,6 @@ class Population:
             left_neighbour_index = 0
         if individual_genome_index == (len(genome_list)-1):
             right_neighbour_index = (len(genome_list)-1)
-
 
         return genome_list[left_neighbour_index], genome_list[right_neighbour_index]
 

@@ -29,6 +29,11 @@ class Ponto:
         # Identificador do ponto nos agrupamentos realizados pelo k-means
         self.id_agrupamento = -1
 
+        # Armazena a distância que este ponto está do depósito
+        self.distancia_deposito = 0
+
+        # Armazenar também a rota desse ponto até o depósito para ploatagem?
+
         # Gera um label somente para os pontos que forem mapeados
         # Isso será usado depois para verificar quantos pontos foram mapeados
         if gera_label:

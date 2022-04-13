@@ -3,6 +3,8 @@
 Este código possui partes desenvolvidas ou baseadas em código desenvolvido por Thales Otávio
 Link do GitHub: https://github.com/thalesorp/NSGA-II
 
+E também possui partes desenvolvidas e baseadas em código desenvolvido por Mateus Soares
+Link do GitHub: https://github.com/MateusSoares/Wireless-Access-Point-Optimization
 """
 
 from sys import maxsize
@@ -15,69 +17,60 @@ from RoteamentoTCC.nsga.population import Population
 # Classe que define o algoritmo NSGA-II
 class NSGA2:
 
-    def __init__(self, genotype_quantity, generations, population_size, genome_min_value, genome_max_value,
-                 crossover_constant, crossover_rate, capacidade_caminhao):
+    # PARÂMETROS
+    # generations: Número de gerações que o algortimo genético irá executar
+    # population_size: Quantidade de indivíduos por população
+    # genome_values: Lista de valores que o genoma de um indivíduo pode ter
+    # mutation_rate: Probabilidade de ocorrer uma mutação em um indivíduo
+    # crossover_rate: Probabilidade de ocorrer crossover
+    # truck_capacity: Capacidade em KG de carga do caminhão
+    # pontos do grafo que será analisado
+    def __init__(self, generations, population_size, genome_values, mutation_rate,
+                 crossover_rate, truck_capacity, graph_points):
 
         self.generations = generations
 
-        # "N" on NSGA-II paper
         self.population_size = population_size
 
-        self.genome_min_value = genome_min_value
-        self.genome_max_value = genome_max_value
+        self.genome_values = genome_values
 
-        # Distribution index. "nc" in NSGA-II paper
-        self.crossover_constant = crossover_constant
-        # self.crossover_constant = 5
-
-        # Crossover probability. "pc" in NSGA-II paper
         self.crossover_rate = crossover_rate
-        # self.crossover_rate = 0.9
 
-        # Size of genome list
-        # Attention! For Genetic Quantum, this value must be 1
-        # self.genotype_quantity = 1
-        self.genotype_quantity = genotype_quantity
+        self.mutation_rate = mutation_rate
 
-        # Mutation probability. "pm" in NSGA-II paper
-        self.mutation_rate = 1/self.genotype_quantity
+        self.truck_capacity = truck_capacity
 
-        # Percentage of chance to disturbing one genotype of genome
-        self.genotype_mutation_probability = 0.5
+        self.graph_points = graph_points
 
-        # Percentage to disturb each genotype mutated
-        self.disturb_percent = 0.5
+        self.front = []
 
-        # "Rt" on NSGA-II paper
-        self.population = Population(self.genotype_quantity, self.genome_min_value, self.genome_max_value,
-                                     capacidade_caminhao)
+        # Depende da forma que será feita a mutação
+        # self.genotype_mutation_probability = 0.5
 
+        # Inicializacao da população
+        self.population = Population(genome_values, graph_points, truck_capacity)
+
+    # Método principal que executa o NSGA-II
     def run(self):
-        """Method responsible for running the main loop of NSGA-II"""
 
-        debug = True
-        plot = False
-
-        if debug:
-            print("# Initiating generation 0...")
-
-        # Creating a parent population P0
-        self.population.initiate(self.population_size//2)
+        # Criando a população inicial Pt
+        self.population.initiate(self.population_size // 2)
 
         self.evaluate(self.population)
 
+        # Armazena as fronteiras selecionadas pela ordenação de dominância
         fronts = self.fast_non_dominated_sort()
-        # if debug: self._show_fronts(fronts)
 
-        # "Q0" on NSGA-II paper
+        # População originada do cruzamento dos indivíduos da primeira metade da população
         offspring_population = self.usual_crossover()
+
         self.evaluate(offspring_population)
 
+        # Variável que irá armazenar a melhor fronteira
         best_front = None
 
+        # Passa pelo número de gerações definido
         for i in range(self.generations):
-            if debug:
-                print("# Running generation " + str(i+1) + "...")
 
             # "Rt" population: union between "Pt" and "Qt", now with size of "2N"
             self.population.union(offspring_population)
@@ -111,56 +104,63 @@ class NSGA2:
             offspring_population = self.crossover()
             self.evaluate(offspring_population)
 
-        if debug: print(self._show_population(best_front))
-
         return best_front
 
     def evaluate(self, population):
-        """This method should be implemented by the heir class"""
 
         pass
 
+    # Retorna uma nova população vazia
     def new_population(self):
-        """Return a empty Population object"""
 
-        return Population(self.genotype_quantity, self.genome_min_value, self.genome_max_value)
+        return Population(self.genome_values, self.graph_points, self.truck_capacity)
 
+    # Ordena os indivíduos de acordo com suas dominâncias e os ordena em fronteiras
     def fast_non_dominated_sort(self):
-        """Sort the individuals according to they dominance and sort them into fronts
-        Everyone check with everyone who dominates who, filling up
-        "domination_count" and "dominated_by" attributes of each individual
-        Also, the first front is created
-        Then the remaining individuals are divided into fronts"""
 
+        # Inicializa os indicadores de dominância de cada indivíduo
         self.population.reset_fronts()
 
         # Initializing the fronts list and the first front
         fronts = list()
         fronts.append(self.new_population())
 
-        # Each of individuals checks if dominates or is dominated with everyone else
+        # Verificação de dominância entre todos os indivíduos
         for i in range(self.population.size):
+
+            # Obtém o indivíduo atual que será comparado aos demais
+            current_individual = self.population.individuals[i]
+
             for j in range(self.population.size):
-                current_individual = self.population.individuals[i]
+
+                # Obtém os indivíduos que serão comparados
                 other_individual = self.population.individuals[j]
 
-                if i != j: # Ignoring itself
-                    # Checking if dominates or are dominated by the other individuals
+                # Verificação para que o indivíduo não verifique a si mesmo
+                if i != j:
+
+                    # Verifica se domina ou é dominado pelos outros indivíduos
                     if current_individual.dominates(other_individual):
+
+                        # Se ele domina, o outro indivíduo é inserido na lista que indivíduos dominados por ele
                         current_individual.dominated_by.append(other_individual)
                     elif other_individual.dominates(current_individual):
+
+                        # Senão, a contagem de indivíduos que o dominam é incrementada
                         current_individual.domination_count += 1
 
-            # Checking if current individual is eligible to the first front
+            # Checa se o indivíduo atual é bom o suficiente para entrar na primeira fronteira
+            # Na primeira fronteira estão os indivíduos que não são dominados por ninguém
             if current_individual.domination_count == 0:
+
                 if current_individual not in fronts[0].individuals:
+
                     current_individual.rank = 1
+
                     fronts[0].insert(current_individual)
 
-        # Temporary front
-        # current_front = self.new_population()
-
         i = 0
+
         while len(fronts[i].individuals) > 0:
             fronts.append(self.new_population())
             for individual in fronts[i].individuals:
