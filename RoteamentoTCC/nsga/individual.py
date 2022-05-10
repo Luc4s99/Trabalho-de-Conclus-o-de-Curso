@@ -1,5 +1,4 @@
 """
-
 Este código possui partes desenvolvidas ou baseadas em código desenvolvido por Thales Otávio
 Link do GitHub: https://github.com/thalesorp/NSGA-II
 
@@ -17,13 +16,13 @@ class Individual:
         self.name = "i~" + str(Individual.id)
         Individual.id += 1
 
-        # List of genotypes
+        # Lista de pontos(Objeto Ponto) que descrevem o genoma do indivíduo
         self.genome = genome
 
         # List of solutions
         self.solutions = list()
 
-        # List of solutions not normalized by the evaluate method
+        # Lista de soluções ainda não normalizadas
         self.non_normalized_solutions = list()
 
         # Quantity of individuals which dominate this individual

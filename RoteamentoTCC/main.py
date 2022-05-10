@@ -9,16 +9,13 @@ import RoteamentoTCC.util as util
 
 if __name__ == '__main__':
 
-    # Capacidade de lixo que um caminhão de lixo possuiem KG
-    CAPACIDADE_CAMINHAO = 10000
-
     print("***** TRABALHO DE CONCLUSÃO DE CURSO *****")
     print("Autor: Lucas Mateus Menezes Silva")
     print("Título: *Ainda a definir*\n")
     print("")
 
     # Arquivo OSM com os dados inicias
-    nome_arquivo = "entrada/teste2.osm"
+    nome_arquivo = "entrada/entrada.osm"
 
     # Leitura de arquivo e geração de arquivo sem tags desnecessárias
     # Invoca função para leitura do arquivo OSM
@@ -50,10 +47,10 @@ if __name__ == '__main__':
     print("Demandas de lixo aproximadas das ruas calculadas!")
 
     # Realiza o agrupamento dos pontos por meio do k-means
-    pontos_agrupados = util.k_means(CAPACIDADE_CAMINHAO)
+    pontos_agrupados = util.k_means()
 
     print("Agrupamentos gerados com sucesso!")
 
     print("Processando rotas...")
     # Após organizados e realizados os agrupamentos, é feito o processamento das rotas em cada um deles
-    util.processamento_rotas(pontos_agrupados, CAPACIDADE_CAMINHAO)
+    util.processamento_rotas(pontos_agrupados)

@@ -27,7 +27,7 @@ from sklearn.cluster import KMeans
 # Biblioteca para limpeza de lixo de memória(garbage collector)
 import gc
 # Classe que define e executa o Non-dominated Sorting Genetic Algorithm II
-import RoteamentoTCC.nsga.nsga2 as NSGA2
+from RoteamentoTCC.nsga.nsga2 import NSGA2
 
 # Parâmetros para a plotagem de imagens
 plt.rcParams['figure.figsize'] = (16, 9)
@@ -45,10 +45,13 @@ ruas = {}
 # Grafo que será utilizado para representar o mapa da cidade já otimizado
 grafo_cidade_otimizado = nx.Graph()
 
+# Capacidade de lixo que um caminhão de lixo possuiem KG
+CAPACIDADE_CAMINHAO = 10000
+
 # Identifica o id ponto que representa o depósito
-# DEPOSITO = '3627233002'
+DEPOSITO = '3627233002'
 # Identificador do depósito no arquivo utilizado para testes(Somente para testes)
-DEPOSITO = '7560818573'
+# DEPOSITO = '7560818573'
 
 # ID's de pontos que serão retirados "manualmente" para que o NSGA-II seja melhor calibrado
 pontos_retirar_manual = ['2386701666', '2386701653', '353461444', '8256516317', '1344105186', '2386701633',
@@ -153,7 +156,6 @@ def le_arquivo(arquivo_entrada: str):
 
                     # Se contiver alguma informação da lista de remoção, esse nó será retirado
                     if v in remover or id_rua in ruas_retirar_manual:
-
                         # Marca a tag para ser removida
                         isremovida = True
 
@@ -182,7 +184,6 @@ def le_arquivo(arquivo_entrada: str):
 
                     # Verifica se o nó existe na lista de nós
                     if ref in pontos.keys():
-
                         # Insere na lista de nós da rua
                         # O ponto é buscado na lista de pontos com base na chave, que é seu id
                         rua.insere_ponto(pontos[ref])
@@ -198,12 +199,10 @@ def le_arquivo(arquivo_entrada: str):
 
             # Se o id desse nó estiver nos nós remanescentes, ele será excluído
             if ramo.get('id') in referencias_nos:
-
                 limpar.append(ramo)
 
         # Chegando as tags de caminhos, nada mais precisa ser verificado
         if ramo.tag == 'way':
-
             break
 
     # Verifica se alguma rua que não será retirada possui o nó analisado
@@ -219,7 +218,6 @@ def le_arquivo(arquivo_entrada: str):
 
                 # Se identificar que algum nó está na rua
                 if no_limpar.attrib['id'] == rua_ponto.id:
-
                     # Ele é retirado da lista de limpeza
                     limpar.remove(no_limpar)
 
@@ -245,7 +243,6 @@ def le_arquivo(arquivo_entrada: str):
 
 
 def otimiza_grafo():
-
     # Percorre todos os nós que já foram obtidos
     for id_ponto, ponto in pontos.items():
 
@@ -255,13 +252,11 @@ def otimiza_grafo():
 
         # Verifica antes se o ponto é um dos que deve ser retirado "manualmente"
         if id_ponto in pontos_retirar_manual:
-
             continue
 
         # Primeiramente verifica se o ponto é o final de uma rua, se for deve ser inserido
         # O ponto que possui somente um vizinho, é considerado um final de rua
         if len(ponto.pontos_vizinhos) == 1:
-
             pontos_otimizados[id_ponto] = ponto
 
         # Se o ponto não foi inserido acima, existem mais testes a serem realizados
@@ -278,13 +273,11 @@ def otimiza_grafo():
 
                         # Verifica se o id dos pontos bate
                         if ponto_rua.id == id_ponto:
-
                             # Incrementa o contador, pois o ponto faz parte da rua
                             contador_ponto = contador_ponto + 1
 
                         # Verifica se o contador está maior que 1, o que indica que o ponto pode ser uma esquina
                         if contador_ponto > 1:
-
                             # Insere o ponto na lista de pontos otimizados
                             pontos_otimizados[id_ponto] = ponto
 
@@ -294,7 +287,6 @@ def otimiza_grafo():
 
 # Função que faz a interligação dos pontos obtidos no mapa, forma as ruas e as plota
 def mapeia_ruas(arquivo):
-
     lat = []
     lon = []
 
@@ -355,7 +347,6 @@ def mapeia_ruas(arquivo):
                         # Se o ponto anterior ao atual possuir algum id
                         # Significa que existe uma ligação de pontos a ser realizada
                         if ponto_anterior.id != -1:
-
                             # Informa que o ponto atual possui ligação com o ponto anterior
                             pontos[filha_ramo.get('ref')].realiza_ligacao(ponto_anterior)
 
@@ -369,18 +360,15 @@ def mapeia_ruas(arquivo):
 
                     # Identifica a chave nome, que indica o nome da rua e atribui a rua atual
                     if filha_ramo.get('k') == 'name':
-
                         rua.nome = filha_ramo.get('v')
 
             # Verifica se a rua possui ao menos um ponto em sua formação
             # Se possuir, ela é inserida no dicionário de ruas
             if len(rua.pontos) != 0:
-
                 ruas[rua.id] = rua
 
             # Se existir algo na lista de tuplas, significa que existem dados a serem exibidos
             if len(tuplas_rua) != 0:
-
                 # Adiciona ao mapa de plotagem as coordenadas das ruas
                 rua_lat, rua_lon = zip(*tuplas_rua)
                 mapa_plot.scatter(rua_lat, rua_lon, '#3B0B39', size=5, marker=False)
@@ -417,11 +405,11 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
 
                     # Porem só serão analisados pontos que estão a frente do ponto analisado atualmente
                     # E pontos válidos
-                    if (rua.pontos.index(ponto_rua_ligar) > index_ponto) and (ponto_rua_ligar.id in pontos_grafo.keys()):
+                    if (rua.pontos.index(ponto_rua_ligar) > index_ponto) and (
+                            ponto_rua_ligar.id in pontos_grafo.keys()):
 
                         # Se um ponto válido for encontrado para frente do que está sendo analisado
                         if ponto_rua_ligar.id in pontos_grafo.keys():
-
                             # Função que calcula a distância entre os pontos
                             distancia_pontos = calcula_distancia_real(rua_id, ponto_rua, ponto_rua_ligar)
 
@@ -435,11 +423,10 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
     # Após o grafo montado, realiza o cálculo de distância de todos os pontos até o depósito
     # for ponto in grafo_cidade_otimizado.nodes:
     for ponto in pontos_otimizados.values():
-
         # Pega o ponto atual e realiza o cálculo através do algoritmo de dijkstra até o depósito
         # Essa distância é armazenada no próprio ponto
         ponto.distancia_deposito = nx.dijkstra_path_length(grafo_cidade_otimizado, ponto.id, DEPOSITO)
-        
+
     # Armazena as coordenadas dos pontos para que seja realizada a plotagem
     for node in nx.nodes(grafo_cidade_otimizado):
         coordenadas_pontos[node] = pontos[node].retorna_coordenadas()
@@ -478,7 +465,6 @@ def calcula_distancia_real(rua_id, ponto_inicial, ponto_final):
 
         # Verifica se o ponto corresponde ao ponto inicial
         if ponto_rua.id == ponto_inicial.id:
-
             achou_ponto_inicial = True
 
         # Se o ponto inicial foi encontrado, as distâncias podem ser somadas
@@ -490,7 +476,6 @@ def calcula_distancia_real(rua_id, ponto_inicial, ponto_final):
 
             # Se o ponto sendo analisado atualmente for o ponto final, então deve ser parada a iteração
             if ponto_rua.id == ponto_final.id:
-
                 break
 
     # Adiciona o tamanho do segmento de rua calculado, ao total da rua
@@ -503,7 +488,6 @@ def calcula_distancia_real(rua_id, ponto_inicial, ponto_final):
 
 # Função que monta o grafo que representa o mapa e o plota
 def monta_grafo(nome_arquivo):
-
     # Grafo que será utilizado para representar o mapa da cidade
     grafo_cidade = nx.Graph()
 
@@ -517,7 +501,6 @@ def monta_grafo(nome_arquivo):
 
         # Verifica cada vizinho de ponto para que sejam montadas as arestas
         for pnt_ligado in pontos[pnt].pontos_vizinhos:
-
             # Calcula a distância entre os pontos, que será utilizada como peso para a aresta
             distancia_pontos = calcula_distancia_pontos(pontos[pnt].latitude, pontos[pnt].longitude,
                                                         pnt_ligado.latitude, pnt_ligado.longitude)
@@ -527,7 +510,6 @@ def monta_grafo(nome_arquivo):
 
     # Armazena as coordenadas dos pontos para que seja realizada a plotagem
     for node in nx.nodes(grafo_cidade):
-
         coordenadas_pontos[node] = pontos[node].retorna_coordenadas()
 
     # Desenha a figura e salva com o nome definido
@@ -546,7 +528,6 @@ def monta_grafo(nome_arquivo):
 
 # Função que calcula a demanda aproximada de lixo de cada rua e divide entre seus pontos
 def calcula_demandas(nome_arquivo):
-
     # Identifica a variável global que armazena a quantidade de lixo total gerada na cidade
     global quantidade_lixo_cidade
 
@@ -573,7 +554,6 @@ def calcula_demandas(nome_arquivo):
 
             # Se o ponto analisado for o próprio depósito, não será atribuída demanda de lixo para ele
             if ponto.id == DEPOSITO:
-
                 continue
 
             ponto.quantidade_lixo = qtd_lixo_ponto
@@ -632,12 +612,11 @@ def calcula_demandas(nome_arquivo):
 
 
 # Função que realiza o agrupamento de pontos próximos
-def k_means(CAPACIDADE_CAMINHAO):
-
+def k_means():
     # Define o número de clusters
     # Definido pela quantidade total de lixo gerada dividida pela capacidade de um caminhão
-    #numero_clusters = round(quantidade_lixo_cidade / CAPACIDADE_CAMINHAO)
-    numero_clusters = 5
+    numero_clusters = round(quantidade_lixo_cidade / CAPACIDADE_CAMINHAO)
+    # numero_clusters = 5
 
     # Monta a matriz com as coordenadas
     matriz = []
@@ -647,7 +626,6 @@ def k_means(CAPACIDADE_CAMINHAO):
 
         # Garante que o depósito não será levado em conta no agrupamento
         if ponto.id == DEPOSITO:
-
             continue
 
         # Insere as coordenadas na matriz
@@ -674,7 +652,6 @@ def k_means(CAPACIDADE_CAMINHAO):
 
         # Pula o depósito pois ele foi ignorado ao fazer os agrupamentos
         if ponto.id == DEPOSITO:
-
             continue
 
         # Verifica antes se o ponto já não está associado a um agrupamento
@@ -712,23 +689,77 @@ def k_means(CAPACIDADE_CAMINHAO):
 
 
 # Função que realiza o processamento das rotas nos agrupamentos gerados
-def processamento_rotas(pontos_agrupados, capacidade_caminhao):
-
+def processamento_rotas(pontos_agrupados):
     # Realiza o processamento de rota para cada um dos clusters
     # Em cada um deles é executado o NSGA-II
     for id_cluster, cluster in pontos_agrupados.items():
 
-        pass
-        
+        # Executa o algoritmo do NSGA-II
+        NSGA2(10, 15, cluster, 0.05, 0.6, CAPACIDADE_CAMINHAO, grafo_cidade_otimizado).run()
+
 
 # Função que calcula a distância entre dois pontos, utilizando a função pronta da biblioteca geopy
 def calcula_distancia_pontos(lat_ponto1, lon_ponto1, lat_ponto2, lon_ponto2):
-
     # Converte as coordenadas em tuplas
     coord_pnt1 = (lat_ponto1, lon_ponto1)
     coord_pnt2 = (lat_ponto2, lon_ponto2)
 
     return geopy.distance.geodesic(coord_pnt1, coord_pnt2).m
+
+
+# Funçã que retorna a soma das distâncias entre todos os pontos que formam um indivíduo
+def calcula_metricas(individuo):
+
+    # Armazena a distância total do indivíduo
+    distancia_total = 0
+    # Armazena o número total de ruas utilizadas pelo indivíduo
+    total_ruas = 0
+    # Total de ruas que possuem conexão
+    total_ruas_con = 0
+    # Lista auxiliar para detectar ruas repetidas
+    ruas_encontradas = []
+    # Auxiliar para detecção de ruas conectadas
+    rua_ant = None
+
+    if len(individuo.genome) > 0:
+
+        # Verifica todas as tuplas de pontos que o indivíduo contém
+        for cont, rua in enumerate(individuo.genome):
+
+            # Adiciona a distância do depósito até o primeiro e último ponto do genoma
+            if cont == 0 or cont == (len(individuo.genome) - 1):
+
+                distancia_total += rua[0].distancia_deposito
+
+            # Primeiro, se calcula a distância
+            if grafo_cidade_otimizado.get_edge_data(rua[0].id, rua[1].id) is not None:
+
+                distancia_total += grafo_cidade_otimizado.get_edge_data(rua[0].id, rua[1].id).get("weight")
+
+            # Em seguida, é verificada a métrica do total de ruas
+            # Se a rua já foi encontrada ela não entra para a conta
+            if rua not in ruas_encontradas:
+
+                total_ruas += 1
+            else:
+
+                ruas_encontradas.append(rua)
+
+            # Por último é verificada a quantidade de ruas que possuem ligação
+            if cont == 0:
+
+                rua_ant = rua
+            else:
+
+                # Se o primeiro ponto da rua atual for vizinho do último ponto da rua anterior
+                # Significa que essas ruas possuem uma ligação
+                if rua[0] in rua_ant[1].pontos_vizinhos:
+
+                    total_ruas_con += 1
+
+                rua_ant = rua
+
+    return [distancia_total, total_ruas, total_ruas_con]
 
 
 def retorna_maior_label():

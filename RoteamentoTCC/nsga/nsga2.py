@@ -9,6 +9,7 @@ Link do GitHub: https://github.com/MateusSoares/Wireless-Access-Point-Optimizati
 
 from sys import maxsize
 import random
+import RoteamentoTCC.util as util
 
 # Importando métodos úteis da classe população
 from RoteamentoTCC.nsga.population import Population
@@ -48,7 +49,7 @@ class NSGA2:
         # self.genotype_mutation_probability = 0.5
 
         # Inicializacao da população
-        self.population = Population(genome_values, graph_points, truck_capacity)
+        self.population = Population(genome_values, truck_capacity)
 
     # Método principal que executa o NSGA-II
     def run(self):
@@ -106,14 +107,55 @@ class NSGA2:
 
         return best_front
 
+    # Função que avalia um indivíduo de acordo com as métricas propostas
+    def evaluate_individual(self, individual):
+
+        # Nesta função serão verificadas 3 métricas do indivíduo
+        # 1ª: Distância total do indivíduo, 2ª: Número de ruas, 3ª: Número de ruas conectadas
+        # Será retornada uma lista com os três valores em ordem
+        return util.calcula_metricas(individual)
+
+    # Função que avalia os indivíduos gerados na população
     def evaluate(self, population):
 
-        pass
+        # Iterando sobre todos os indivíduos gerados na população
+        for individual in population.individuals:
+
+            # Verifica se o indivíduo já foi avaliado antes
+            if not individual.solutions:
+
+                individual.non_normalized_solutions = self.evaluate_individual(individual)
+
+        second_function_values = [i.non_normalized_solutions[1] for i in population.individuals]
+        third_function_values = [i.non_normalized_solutions[2] for i in population.individuals]
+
+        max_ap_quantity = np.max(second_function_values)
+        min_ap_quantity = np.min(second_function_values)
+
+        max_value_distance = np.max(third_function_values)
+        min_value_distance = np.min(third_function_values)
+
+        # Normalizing the values of each solution and putting them into individuals.solutions list
+        for individual in population.individuals:
+            individual.solutions.append(
+                (individual.non_normalized_solutions[0] - (-coverage_max_value)) / (0 - (-coverage_max_value)))
+
+            individual.solutions.append(
+                (individual.non_normalized_solutions[1] - min_ap_quantity) / (0 - min_ap_quantity))
+
+            individual.solutions.append(
+                (individual.non_normalized_solutions[2] - min_value_distance) / (
+                            max_value_distance - min_value_distance))
+
+        self.add_population_to_file(population)
+
+        print(self.generation)
+        self.generation += 1
 
     # Retorna uma nova população vazia
     def new_population(self):
 
-        return Population(self.genome_values, self.graph_points, self.truck_capacity)
+        return Population(self.genome_values, self.truck_capacity)
 
     # Ordena os indivíduos de acordo com suas dominâncias e os ordena em fronteiras
     def fast_non_dominated_sort(self):
@@ -121,7 +163,7 @@ class NSGA2:
         # Inicializa os indicadores de dominância de cada indivíduo
         self.population.reset_fronts()
 
-        # Initializing the fronts list and the first front
+        # Inicializando a lista de fronteiras e a primeira fronteira
         fronts = list()
         fronts.append(self.new_population())
 
@@ -136,7 +178,7 @@ class NSGA2:
                 # Obtém os indivíduos que serão comparados
                 other_individual = self.population.individuals[j]
 
-                # Verificação para que o indivíduo não verifique a si mesmo
+                # Verificação para que o indivíduo não compare a si mesmo
                 if i != j:
 
                     # Verifica se domina ou é dominado pelos outros indivíduos
