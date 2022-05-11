@@ -49,9 +49,9 @@ grafo_cidade_otimizado = nx.Graph()
 CAPACIDADE_CAMINHAO = 10000
 
 # Identifica o id ponto que representa o depósito
-DEPOSITO = '3627233002'
+# DEPOSITO = '3627233002'
 # Identificador do depósito no arquivo utilizado para testes(Somente para testes)
-# DEPOSITO = '7560818573'
+DEPOSITO = '7560818573'
 
 # ID's de pontos que serão retirados "manualmente" para que o NSGA-II seja melhor calibrado
 pontos_retirar_manual = ['2386701666', '2386701653', '353461444', '8256516317', '1344105186', '2386701633',
@@ -380,6 +380,22 @@ def mapeia_ruas(arquivo):
     mapa_plot.draw('saida/mapa.html')
 
 
+# Essa função atualiza os vizinhos dos pontos após a otimização do grafo
+# Pois durante o processo de otimização, alguns vizinhos podem ter sido removidos
+def atualiza_vizinhos():
+
+    # Primeiro limpa todos os vizinhos dos pontos otimizados
+    for ponto in pontos_otimizados.values():
+
+        ponto.pontos_vizinhos.clear()
+
+    # Então insere os vizinhos atualizados, com base nas arestas do grafo
+    for tupla in grafo_cidade_otimizado.edges:
+
+        pontos_otimizados[tupla[0]].pontos_vizinhos.append(pontos_otimizados[tupla[1]])
+        pontos_otimizados[tupla[1]].pontos_vizinhos.append(pontos_otimizados[tupla[0]])
+
+
 # Função que monta o grafo que representa o mapa e o plota
 def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
 
@@ -444,6 +460,8 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
 
     # Realiza a coleta de lixo de memória
     gc.collect()
+
+    atualiza_vizinhos()
 
 
 # Função que calcula a distância real entre dois pontos de uma rua
@@ -615,8 +633,8 @@ def calcula_demandas(nome_arquivo):
 def k_means():
     # Define o número de clusters
     # Definido pela quantidade total de lixo gerada dividida pela capacidade de um caminhão
-    numero_clusters = round(quantidade_lixo_cidade / CAPACIDADE_CAMINHAO)
-    # numero_clusters = 5
+    # numero_clusters = round(quantidade_lixo_cidade / CAPACIDADE_CAMINHAO)
+    numero_clusters = 5
 
     # Monta a matriz com as coordenadas
     matriz = []
@@ -732,9 +750,7 @@ def calcula_metricas(individuo):
                 distancia_total += rua[0].distancia_deposito
 
             # Primeiro, se calcula a distância
-            if grafo_cidade_otimizado.get_edge_data(rua[0].id, rua[1].id) is not None:
-
-                distancia_total += grafo_cidade_otimizado.get_edge_data(rua[0].id, rua[1].id).get("weight")
+            distancia_total += grafo_cidade_otimizado.get_edge_data(rua[0].id, rua[1].id).get("weight")
 
             # Em seguida, é verificada a métrica do total de ruas
             # Se a rua já foi encontrada ela não entra para a conta
