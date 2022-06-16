@@ -43,7 +43,8 @@ pontos_otimizados = {}
 ruas = {}
 
 # Grafo que será utilizado para representar o mapa da cidade já otimizado
-grafo_cidade_otimizado = nx.Graph()
+#grafo_cidade_otimizado = nx.Graph()
+grafo_cidade_otimizado = nx.MultiGraph()
 
 # Capacidade de lixo que um caminhão de lixo possuiem KG
 CAPACIDADE_CAMINHAO = 10000
@@ -285,6 +286,30 @@ def otimiza_grafo():
                             break
 
 
+def adiciona_alturas():
+
+    # Abre o arquivo que contém as altitudes dos pontos
+    arq_altitudes = open("entrada/alturas.osm", "r")
+
+    # Passa por todas as linhas do arquivo
+    for linha in arq_altitudes:
+
+        # Quebra as informações da linha em uma lista
+        linha = linha.split()
+
+        # Extrai o id e altitude do ponto em questão
+        id = linha[2].replace("\"", "")
+        alt = float(linha[5].replace("\"", ""))
+
+        # Adiciona a altura ao respectivo ponto
+        if pontos_otimizados.get(id) is not None:
+
+            pontos_otimizados.get(id).altitude = alt
+
+    # Fecha o arquivo já que  não será mais usado
+    arq_altitudes.close()
+
+
 # Função que faz a interligação dos pontos obtidos no mapa, forma as ruas e as plota
 def mapeia_ruas(arquivo):
     lat = []
@@ -435,13 +460,6 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
 
                             # Para o for, pois a ligação desse ponto já foi encontrada
                             break
-
-    # Após o grafo montado, realiza o cálculo de distância de todos os pontos até o depósito
-    # for ponto in grafo_cidade_otimizado.nodes:
-    for ponto in pontos_otimizados.values():
-        # Pega o ponto atual e realiza o cálculo através do algoritmo de dijkstra até o depósito
-        # Essa distância é armazenada no próprio ponto
-        ponto.distancia_deposito = nx.dijkstra_path_length(grafo_cidade_otimizado, ponto.id, DEPOSITO)
 
     # Armazena as coordenadas dos pontos para que seja realizada a plotagem
     for node in nx.nodes(grafo_cidade_otimizado):
@@ -708,12 +726,33 @@ def k_means():
 
 # Função que realiza o processamento das rotas nos agrupamentos gerados
 def processamento_rotas(pontos_agrupados):
+
     # Realiza o processamento de rota para cada um dos clusters
-    # Em cada um deles é executado o NSGA-II
     for id_cluster, cluster in pontos_agrupados.items():
 
-        # Executa o algoritmo do NSGA-II
-        NSGA2(10, 15, cluster, 0.05, 0.6, CAPACIDADE_CAMINHAO, grafo_cidade_otimizado).run()
+        # Primeiramente é montado um subgrafo com os pontos do cluster
+        grafo_cluster = grafo_cidade_otimizado.subgraph(ponto.id for ponto in cluster).copy()
+
+        # Após isso esse grafo é transformado em um grafo euleriano
+        converte_grafo_euleriano(grafo_cluster)
+
+        for vertice in cluster:
+
+            # Lista de variâncias de altitude
+            variancia_alt = []
+            variacao_tot = 0
+
+            retorno = list(nx.eulerian_circuit(grafo_cluster, source=vertice.id))
+
+            for aresta in retorno:
+
+                variacao = (pontos_otimizados[aresta[0]].altitude - pontos_otimizados[aresta[1]].altitude) / grafo_cluster[aresta[0]][aresta[1]][0]['weight']
+                variancia_alt.append(variacao)
+                variacao_tot += variacao
+
+            print(f"Variação começando do ponto {vertice.id}: {variacao_tot}")
+
+        print('fim')
 
 
 # Função que calcula a distância entre dois pontos, utilizando a função pronta da biblioteca geopy
@@ -725,7 +764,7 @@ def calcula_distancia_pontos(lat_ponto1, lon_ponto1, lat_ponto2, lon_ponto2):
     return geopy.distance.geodesic(coord_pnt1, coord_pnt2).m
 
 
-# Funçã que retorna a soma das distâncias entre todos os pontos que formam um indivíduo
+# Função que retorna a soma das distâncias entre todos os pontos que formam um indivíduo
 def calcula_metricas(individuo):
 
     # Armazena a distância total do indivíduo
@@ -747,7 +786,8 @@ def calcula_metricas(individuo):
             # Adiciona a distância do depósito até o primeiro e último ponto do genoma
             if cont == 0 or cont == (len(individuo.genome) - 1):
 
-                distancia_total += rua[0].distancia_deposito
+                # distancia_total += rua[0].distancia_deposito
+                pass
 
             # Primeiro, se calcula a distância
             distancia_total += grafo_cidade_otimizado.get_edge_data(rua[0].id, rua[1].id).get("weight")
@@ -780,3 +820,40 @@ def calcula_metricas(individuo):
 
 def retorna_maior_label():
     return Ponto.novo_label
+
+
+# Converte o grafo otimizado para um grafo euleriano
+# Para que um grafo seja euleriano, todos os vértices dele devem possuir grau par
+def converte_grafo_euleriano(grafo):
+
+    # Verifica se o grafo é euleriano
+    # Se não for, devem ser feitas alterações para que ele se torne um grafo euleriano
+    if not nx.is_eulerian(grafo):
+
+        # Cria uma lista que irá armazenar os vértices de grau impar
+        impares = []
+
+        # Itera sobre todos os nós do grafo verificando o grau de cada um deles
+        for node in grafo.nodes:
+
+            # Se o grau do nó for impar, devem ser feitas correções
+            if len(grafo[node]) % 2 != 0:
+
+                # Então ele é adicionado na lista de vértices ímpares para ser corrigido
+                impares.append(node)
+
+        # Passa por cada um dos vértices, mas como em cada rodada dois vértices são corrigidos
+        # o passo do for deve ser de 2 em 2
+        for i in range(0, len(impares) - 1, 2):
+
+            # Retorna o menor caminho entre os dois vértice analisados no momento
+            # Isso é feito pois todas as arestas nesse caminho serão duplicadas
+            # Assim os dois vértices em questão passarão a ter grau par
+            retorno = nx.shortest_path(grafo, impares[i], impares[i + 1])
+
+            for j in range(len(retorno) - 1):
+
+                # Obtém o peso da aresta que será clonada
+                peso = grafo[retorno[j]][retorno[j + 1]][0]['weight']
+                # E adiciona ela novamente ao grafo
+                grafo.add_edge(retorno[j], retorno[j + 1], weight=peso)

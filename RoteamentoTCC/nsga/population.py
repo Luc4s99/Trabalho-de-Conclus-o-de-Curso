@@ -15,7 +15,6 @@ from .individual import Individual
 
 
 class Population:
-    """Class of population of indiviuals, used by NSGA-II"""
 
     def __init__(self, genome_values, capacidade_caminhao):
 
@@ -118,9 +117,11 @@ class Population:
         for individual in population.individuals:
             self.insert(individual)
 
+    # Reseta dados sobre as fronteiras e também das informações do domination sort dos indivíduos
     def reset_fronts(self):
 
         for individual in self.individuals:
+
             individual.domination_count = 0
             individual.dominated_by = list()
 
@@ -130,8 +131,8 @@ class Population:
 
         self.fronts.append([])
 
+    # Retorna um indivíduo aleatório da população
     def get_random_individual(self):
-        """Return a random individual of this population"""
 
         index = random.randint(0, self.size-1)
 

@@ -10,6 +10,7 @@ Link do GitHub: https://github.com/MateusSoares/Wireless-Access-Point-Optimizati
 from sys import maxsize
 import random
 import RoteamentoTCC.util as util
+import numpy as np
 
 # Importando métodos úteis da classe população
 from RoteamentoTCC.nsga.population import Population
@@ -51,12 +52,16 @@ class NSGA2:
         # Inicializacao da população
         self.population = Population(genome_values, truck_capacity)
 
+        # Indica qual geração o algoritmo está executando
+        self.geracao = 1
+
     # Método principal que executa o NSGA-II
     def run(self):
 
         # Criando a população inicial Pt
         self.population.initiate(self.population_size // 2)
 
+        # Avalia os indivíduos gerados na população
         self.evaluate(self.population)
 
         # Armazena as fronteiras selecionadas pela ordenação de dominância
@@ -124,33 +129,39 @@ class NSGA2:
             # Verifica se o indivíduo já foi avaliado antes
             if not individual.solutions:
 
+                # Avalia e retorna as soluções não normalizadas
                 individual.non_normalized_solutions = self.evaluate_individual(individual)
 
-        second_function_values = [i.non_normalized_solutions[1] for i in population.individuals]
-        third_function_values = [i.non_normalized_solutions[2] for i in population.individuals]
+        # Normalização de dados MIN MAX
+        # Obtem os maiores valores dos indivíduos durante suas avaliações
+        distancia_max = np.max([i.non_normalized_solutions[0] for i in population.individuals])
+        ruas_max = np.max([i.non_normalized_solutions[1] for i in population.individuals])
+        ruas_conectadas_max = np.max([i.non_normalized_solutions[2] for i in population.individuals])
 
-        max_ap_quantity = np.max(second_function_values)
-        min_ap_quantity = np.min(second_function_values)
+        # Obtem os menores valores dos indivíduos durante suas avaliações
+        distancia_min = np.min([i.non_normalized_solutions[0] for i in population.individuals])
+        ruas_min = np.min([i.non_normalized_solutions[1] for i in population.individuals])
+        ruas_conectadas_min = np.min([i.non_normalized_solutions[2] for i in population.individuals])
 
-        max_value_distance = np.max(third_function_values)
-        min_value_distance = np.min(third_function_values)
-
-        # Normalizing the values of each solution and putting them into individuals.solutions list
+        # Realiza a normalização das soluções para que seus valores não sejam tão discrepantes
+        # O método de normalização utilizada foi o Min-Max, que retorna valores entre [0-1]
         for individual in population.individuals:
+
+            # x' = (xi - xmin) / (xmax - xmin)
             individual.solutions.append(
-                (individual.non_normalized_solutions[0] - (-coverage_max_value)) / (0 - (-coverage_max_value)))
+                (individual.non_normalized_solutions[0] - distancia_min) / (distancia_max - distancia_min))
 
             individual.solutions.append(
-                (individual.non_normalized_solutions[1] - min_ap_quantity) / (0 - min_ap_quantity))
+                (individual.non_normalized_solutions[1] - ruas_min) / (ruas_max - ruas_min))
 
             individual.solutions.append(
-                (individual.non_normalized_solutions[2] - min_value_distance) / (
-                            max_value_distance - min_value_distance))
+                (individual.non_normalized_solutions[2] - ruas_conectadas_min) /
+                (ruas_conectadas_max - ruas_conectadas_min))
 
-        self.add_population_to_file(population)
+        # Usado para calibrar, depois descomentar e plotar os gráficos do hypervolume
+        # self.add_population_to_file(population)
 
-        print(self.generation)
-        self.generation += 1
+        self.geracao += 1
 
     # Retorna uma nova população vazia
     def new_population(self):
@@ -163,7 +174,7 @@ class NSGA2:
         # Inicializa os indicadores de dominância de cada indivíduo
         self.population.reset_fronts()
 
-        # Inicializando a lista de fronteiras e a primeira fronteira
+        # Inicializando a lista de fronteiras e a primeira fronteira, que corresponde a primeira população
         fronts = list()
         fronts.append(self.new_population())
 
@@ -171,35 +182,36 @@ class NSGA2:
         for i in range(self.population.size):
 
             # Obtém o indivíduo atual que será comparado aos demais
-            current_individual = self.population.individuals[i]
+            individuo_atual = self.population.individuals[i]
 
+            # Outro loop para passar por todos os indivíduos
             for j in range(self.population.size):
 
                 # Obtém os indivíduos que serão comparados
-                other_individual = self.population.individuals[j]
+                outro_individuo = self.population.individuals[j]
 
                 # Verificação para que o indivíduo não compare a si mesmo
                 if i != j:
 
                     # Verifica se domina ou é dominado pelos outros indivíduos
-                    if current_individual.dominates(other_individual):
+                    if individuo_atual.dominates(outro_individuo):
 
                         # Se ele domina, o outro indivíduo é inserido na lista que indivíduos dominados por ele
-                        current_individual.dominated_by.append(other_individual)
-                    elif other_individual.dominates(current_individual):
+                        individuo_atual.dominated_by.append(outro_individuo)
+                    elif outro_individuo.dominates(individuo_atual):
 
                         # Senão, a contagem de indivíduos que o dominam é incrementada
-                        current_individual.domination_count += 1
+                        individuo_atual.domination_count += 1
 
             # Checa se o indivíduo atual é bom o suficiente para entrar na primeira fronteira
             # Na primeira fronteira estão os indivíduos que não são dominados por ninguém
-            if current_individual.domination_count == 0:
+            if individuo_atual.domination_count == 0:
 
-                if current_individual not in fronts[0].individuals:
+                if individuo_atual not in fronts[0].individuals:
 
-                    current_individual.rank = 1
+                    individuo_atual.rank = 1
 
-                    fronts[0].insert(current_individual)
+                    fronts[0].insert(individuo_atual)
 
         i = 0
 
@@ -224,7 +236,6 @@ class NSGA2:
         return fronts
 
     def crowding_distance_assignment(self, fronts):
-        """Calculates the crowding distance value of each individual"""
 
         for population in fronts:
 
@@ -295,26 +306,47 @@ class NSGA2:
 
         return self.crowded_comparison(first_candidate, second_candidate)
 
+    # Retorna o melhor indivíduo dentre dois sorteados aleatoriamente
     def usual_tournament_selection(self):
-        """Usual binary tournament selection"""
 
-        first_candidate = self.population.get_random_individual()
-        second_candidate = self.population.get_random_individual()
+        # Seleciona dois indivíduos aleatórios da população
+        primeiro_candidato = self.population.get_random_individual()
+        segundo_candidato = self.population.get_random_individual()
 
-        first_candidate_score = 0
-        second_candidate_score = 0
+        # Variáveis que armazenam a pontuação de cada um deles
+        pontuacao_primeiro_candidato = 0
+        pontuacao_segundo_candidato = 0
 
-        for i in range(self.genotype_quantity):
-            if first_candidate.genome[i] < second_candidate.genome[i]:
-                first_candidate_score += 1
-                continue
-            if second_candidate.genome[i] < first_candidate.genome[i]:
-                second_candidate_score += 1
+        # Compara os dois indivíduos para retornar o melhor
+        # Primeiro verifica qual dos dois possui a menor distância
+        if primeiro_candidato.solutions[0] < segundo_candidato.solutions[0]:
 
-        if first_candidate_score > second_candidate_score:
-            return first_candidate
+            pontuacao_primeiro_candidato += 1
+        elif primeiro_candidato.solutions[0] > segundo_candidato.solutions[0]:
 
-        return second_candidate
+            pontuacao_segundo_candidato += 1
+
+        # Depois verifica qual possui o maior número de ruas utilizadas
+        if primeiro_candidato.solutions[0] > segundo_candidato.solutions[0]:
+
+            pontuacao_primeiro_candidato += 1
+        elif primeiro_candidato.solutions[0] < segundo_candidato.solutions[0]:
+
+            pontuacao_segundo_candidato += 1
+
+        # Por último verifica qual possui o maior número de ruas conectadas
+        if primeiro_candidato.solutions[0] > segundo_candidato.solutions[0]:
+
+            pontuacao_primeiro_candidato += 1
+        elif primeiro_candidato.solutions[0] < segundo_candidato.solutions[0]:
+
+            pontuacao_segundo_candidato += 1
+
+        if pontuacao_primeiro_candidato > pontuacao_segundo_candidato:
+
+            return primeiro_candidato
+
+        return segundo_candidato
 
     def crossover(self):
         """Create a offspring population using the simulated binary crossover (SBX)
@@ -352,19 +384,15 @@ class NSGA2:
 
         return offspring_population
 
+    # Seleciona os pais para a realização do crossover e geração dos filhos
     def usual_crossover(self):
-        """Create a offspring population using the simulated binary crossover (SBX)
-        and the usual binary tournament selection"""
 
         genomes_list = list()
 
-        # Getting the quantity of individuals that are needed to create
-        # TODO: This value MUST BE even
-        amount_to_create = self.population_size
+        # O loop conta de 2 em 2 pois cada iteração gera 2 indivíduos
+        for _ in range(0, self.population_size, 2):
 
-        # "step = 2" because each iteration generates two children
-        for _ in range(0, amount_to_create, 2):
-
+            # Seleciona dois pais bons para realizarem o crossover
             parent1 = self.usual_tournament_selection()
             parent2 = self.usual_tournament_selection()
 

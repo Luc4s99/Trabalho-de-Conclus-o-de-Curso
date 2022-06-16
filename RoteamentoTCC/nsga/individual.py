@@ -41,9 +41,8 @@ class Individual:
         first_half = True
         second_half = False
 
-        i = 0
-
-        for solution in self.solutions:
+        # Compara todas as soluções do indivíduo atual com as do indivíduo passado por parâmetro
+        for i, solution in enumerate(self.solutions):
 
             first_half = first_half and bool(solution <= individual.solutions[i])
             second_half = second_half or bool(solution < individual.solutions[i])

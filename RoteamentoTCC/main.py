@@ -15,7 +15,7 @@ if __name__ == '__main__':
     print("")
 
     # Arquivo OSM com os dados inicias
-    nome_arquivo = "entrada/entrada.osm"
+    nome_arquivo = "entrada/teste2.osm"
 
     # Leitura de arquivo e geração de arquivo sem tags desnecessárias
     # Invoca função para leitura do arquivo OSM
@@ -35,6 +35,9 @@ if __name__ == '__main__':
 
     # Monta o dicionário com os pontos otimizados
     util.otimiza_grafo()
+
+    # Adiciona as altitudes dos pontos
+    util.adiciona_alturas()
 
     # Monta um grafo otimizado, que contém apenas pontos de maior interesse
     util.monta_grafo_otimizado(util.pontos_otimizados, "saida/GrafoCidadeOtimizado.png")

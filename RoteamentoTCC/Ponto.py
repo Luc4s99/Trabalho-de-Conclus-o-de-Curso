@@ -29,8 +29,8 @@ class Ponto:
         # Identificador do ponto nos agrupamentos realizados pelo k-means
         self.id_agrupamento = -1
 
-        # Armazena a distância que este ponto está do depósito
-        self.distancia_deposito = 0
+        # Armazena a altitude do ponto
+        self.altitude = -1
 
         # Armazenar também a rota desse ponto até o depósito para ploatagem?
 
