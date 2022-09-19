@@ -16,22 +16,20 @@ from .individual import Individual
 
 class Population:
 
-    def __init__(self, genome_values, capacidade_caminhao):
+    def __init__(self, max_caminhoes, max_clusters):
 
         # Semente para geração de valores aleatórios
         random.seed()
 
         self.size = 0
 
-        # Lista com os valores válidos de gene que aquele genoma pode conter
-        self.genome_values = genome_values
-
-        # Capacidade em kg do caminhão de coleta
-        self.capacidade_caminhao = capacidade_caminhao
-
         self.individuals = list()
 
         self.fronts = list()
+
+        self.max_caminhoes = max_caminhoes
+
+        self.max_clusters = max_clusters
 
     # Método que gera os indivíduos da população
     def initiate(self, n_individuals):
@@ -39,43 +37,16 @@ class Population:
         # Itera sobre o número de indivíduos que precisa ser gerado
         for _ in range(n_individuals):
 
-            # Lista de tuplas que representa o genoma do indivíduo
-            # Cada tupla representa uma "rua" (ou parte dela) entre dois pontos de coleta
+            # Lista que representa o genoma do indivíduo
+            # Cada posição da lista define o número de caminhões a ser utilizado e a quantidade de cluster
             genome = list()
 
-            # Indica a carga atual do indivíduo durante sua montagem
-            carga = 0
+            # Gera a quantidade de caminhões que serão utilizados para realizar a coleta
+            genome.append(random.randint(1, self.max_caminhoes))
 
-            # Copia sem referência a lista de valores de genoma, para um genoma auxiliar
-            genome_aux = self.genome_values.copy()
-
-            # Reorganiza o genoma de forma aleatória
-            random.shuffle(genome_aux)
-
-            for gen in genome_aux:
-
-                # Gera uma tupla com os ids do ponto e de um vizinho aleatório
-                genotype = (gen, random.choice(gen.pontos_vizinhos))
-
-                # Verifica se o novo gene não excedeu a capacidade do indivíduo
-                if carga > self.capacidade_caminhao or (carga + genotype[0].quantidade_lixo
-                                                        + genotype[1].quantidade_lixo) > self.capacidade_caminhao:
-
-                    break
-                else:
-
-                    # Insere o gene válido no genoma
-                    genome.append(genotype)
-
-                    # Verifica antes se o gene não termina em uma rua sem saída
-                    # Se o ponto tiver apenas um vizinho, ele é uma rua sem saída
-                    if len(genotype[1].pontos_vizinhos) == 1:
-                        # Então, automaticamente é inserida a volta dessa rua sem saída
-                        # Que é feito apenas invertendo a ordem dos genes atuais
-                        genome.append((genotype[1], genotype[0]))
-
-                    # Adiciona a quantidade de lixo do gene na carga atual
-                    carga += genotype[0].quantidade_lixo + genotype[1].quantidade_lixo
+            # TODO Testar com quantidades mínimas diferentes
+            # Gera a quantidade de cluster que serão gerados para a cidade
+            genome.append(random.randint(1, self.max_clusters))
 
             self.new_individual(genome)
 
@@ -111,8 +82,8 @@ class Population:
         self.individuals.remove(individual)
         self.size -= 1
 
+    # Realiza a união entre uma população e outra
     def union(self, population):
-        '''Union operation over "population" and current population'''
 
         for individual in population.individuals:
             self.insert(individual)
@@ -201,13 +172,13 @@ class Population:
 
         return genome_list[left_neighbour_index], genome_list[right_neighbour_index]
 
-    def get_extreme_neighbours(self, genome_index):
-        """Return the highest and lowest neighbour values of "individual_genome\""""
+    # Retorna o maior e menor valor da solução de vizinhos
+    def get_extreme_neighbours(self, solution_index):
 
         genome_list = list()
 
         for individual in self.individuals:
-            genome_list.append(individual.genome[genome_index])
+            genome_list.append(individual.solutions[solution_index])
 
         return min(genome_list), max(genome_list)
 

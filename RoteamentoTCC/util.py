@@ -43,16 +43,16 @@ pontos_otimizados = {}
 ruas = {}
 
 # Grafo que será utilizado para representar o mapa da cidade já otimizado
-#grafo_cidade_otimizado = nx.Graph()
+# grafo_cidade_otimizado = nx.Graph()
 grafo_cidade_otimizado = nx.MultiGraph()
 
 # Capacidade de lixo que um caminhão de lixo possuiem KG
 CAPACIDADE_CAMINHAO = 10000
 
 # Identifica o id ponto que representa o depósito
-# DEPOSITO = '3627233002'
+DEPOSITO = '3627233002'
 # Identificador do depósito no arquivo utilizado para testes(Somente para testes)
-DEPOSITO = '7560818573'
+# DEPOSITO = '7560818573'
 
 # ID's de pontos que serão retirados "manualmente" para que o NSGA-II seja melhor calibrado
 pontos_retirar_manual = ['2386701666', '2386701653', '353461444', '8256516317', '1344105186', '2386701633',
@@ -244,6 +244,7 @@ def le_arquivo(arquivo_entrada: str):
 
 
 def otimiza_grafo():
+
     # Percorre todos os nós que já foram obtidos
     for id_ponto, ponto in pontos.items():
 
@@ -303,7 +304,6 @@ def adiciona_alturas():
 
         # Adiciona a altura ao respectivo ponto
         if pontos_otimizados.get(id) is not None:
-
             pontos_otimizados.get(id).altitude = alt
 
     # Fecha o arquivo já que  não será mais usado
@@ -312,6 +312,7 @@ def adiciona_alturas():
 
 # Função que faz a interligação dos pontos obtidos no mapa, forma as ruas e as plota
 def mapeia_ruas(arquivo):
+
     lat = []
     lon = []
 
@@ -411,12 +412,10 @@ def atualiza_vizinhos():
 
     # Primeiro limpa todos os vizinhos dos pontos otimizados
     for ponto in pontos_otimizados.values():
-
         ponto.pontos_vizinhos.clear()
 
     # Então insere os vizinhos atualizados, com base nas arestas do grafo
     for tupla in grafo_cidade_otimizado.edges:
-
         pontos_otimizados[tupla[0]].pontos_vizinhos.append(pontos_otimizados[tupla[1]])
         pontos_otimizados[tupla[1]].pontos_vizinhos.append(pontos_otimizados[tupla[0]])
 
@@ -524,6 +523,7 @@ def calcula_distancia_real(rua_id, ponto_inicial, ponto_final):
 
 # Função que monta o grafo que representa o mapa e o plota
 def monta_grafo(nome_arquivo):
+
     # Grafo que será utilizado para representar o mapa da cidade
     grafo_cidade = nx.Graph()
 
@@ -562,8 +562,30 @@ def monta_grafo(nome_arquivo):
     gc.collect()
 
 
+def desenha_grafo(grafo):
+
+    coordenadas_pontos = {}
+
+    for node in nx.nodes(grafo):
+        coordenadas_pontos[node] = pontos[node].retorna_coordenadas()
+
+    nx.draw(grafo, node_size=0.5, node_color='grey', alpha=0.5, with_labels=False,
+            pos=coordenadas_pontos)
+    plt.savefig("saida/grafoDesenhado.png", dpi=500)
+
+    # Limpa a figura para evitar que o marplotlib se "lembre" da figura
+    plt.clf()
+
+    # Fecha a instância do pyplot para que nenhum lixo de memória seja inserido na próxima imagem
+    plt.close()
+
+    # Realiza a coleta de lixo de memória
+    gc.collect()
+
+
 # Função que calcula a demanda aproximada de lixo de cada rua e divide entre seus pontos
 def calcula_demandas(nome_arquivo):
+
     # Identifica a variável global que armazena a quantidade de lixo total gerada na cidade
     global quantidade_lixo_cidade
 
@@ -578,9 +600,6 @@ def calcula_demandas(nome_arquivo):
         # Isso é multiplicado por 3 pois, a média de pessoas por família é de 3 e a média de produção de lixo por pessoa
         # é de 1kg
         rua.quantidade_lixo_rua = int((np.random.weibull(5.) * rua.tamanho_rua / 10) * 2) * 3
-
-        # A quantidade total de lixo da cidade é incrementada
-        quantidade_lixo_cidade += rua.quantidade_lixo_rua
 
         # Divide de forma uniforme entre os pontos da rua a quantidade de lixo estimada
         qtd_lixo_ponto = rua.quantidade_lixo_rua / len(rua.pontos)
@@ -619,6 +638,9 @@ def calcula_demandas(nome_arquivo):
 
             qtd_lixo = pontos_otimizados.get(node).quantidade_lixo
 
+            # A quantidade total de lixo da cidade é incrementada
+            quantidade_lixo_cidade += qtd_lixo
+
             if qtd_lixo <= 10:
 
                 cores.append('green')
@@ -648,17 +670,13 @@ def calcula_demandas(nome_arquivo):
 
 
 # Função que realiza o agrupamento de pontos próximos
-def k_means():
-    # Define o número de clusters
-    # Definido pela quantidade total de lixo gerada dividida pela capacidade de um caminhão
-    # numero_clusters = round(quantidade_lixo_cidade / CAPACIDADE_CAMINHAO)
-    numero_clusters = 5
+def k_means(n_cluster):
 
     # Monta a matriz com as coordenadas
     matriz = []
 
     # Passa por todos os pontos otimizados
-    for _, ponto in pontos_otimizados.items():
+    for ponto in pontos_otimizados.values():
 
         # Garante que o depósito não será levado em conta no agrupamento
         if ponto.id == DEPOSITO:
@@ -667,11 +685,14 @@ def k_means():
         # Insere as coordenadas na matriz
         matriz.append([float(ponto.latitude), float(ponto.longitude)])
 
+        # E reseta os agrupamentos dos pontos
+        ponto.id_agrupamento = -1
+
     # Cria o array pela biblioteca do numpy
     coordenadas_pontos = np.array(matriz)
 
     # Realiza uma instância do algoritmo do kmeans
-    kmeans = KMeans(numero_clusters, init='k-means++', n_init=10, max_iter=300)
+    kmeans = KMeans(n_cluster, init='k-means++', n_init=10, max_iter=300)
 
     # Executa o kmeans para encontrar a localização que devem ficar os agrupamentos
     pred_y = kmeans.fit_predict(coordenadas_pontos)
@@ -725,34 +746,12 @@ def k_means():
 
 
 # Função que realiza o processamento das rotas nos agrupamentos gerados
-def processamento_rotas(pontos_agrupados):
+def processamento_rotas():
 
-    # Realiza o processamento de rota para cada um dos clusters
-    for id_cluster, cluster in pontos_agrupados.items():
+    # O tamanho da população deve ser sempre par
+    nsga = NSGA2(5, 10, 0.05, 0.85, 30, 30)
 
-        # Primeiramente é montado um subgrafo com os pontos do cluster
-        grafo_cluster = grafo_cidade_otimizado.subgraph(ponto.id for ponto in cluster).copy()
-
-        # Após isso esse grafo é transformado em um grafo euleriano
-        converte_grafo_euleriano(grafo_cluster)
-
-        for vertice in cluster:
-
-            # Lista de variâncias de altitude
-            variancia_alt = []
-            variacao_tot = 0
-
-            retorno = list(nx.eulerian_circuit(grafo_cluster, source=vertice.id))
-
-            for aresta in retorno:
-
-                variacao = (pontos_otimizados[aresta[0]].altitude - pontos_otimizados[aresta[1]].altitude) / grafo_cluster[aresta[0]][aresta[1]][0]['weight']
-                variancia_alt.append(variacao)
-                variacao_tot += variacao
-
-            print(f"Variação começando do ponto {vertice.id}: {variacao_tot}")
-
-        print('fim')
+    return nsga.run()
 
 
 # Função que calcula a distância entre dois pontos, utilizando a função pronta da biblioteca geopy
@@ -764,60 +763,6 @@ def calcula_distancia_pontos(lat_ponto1, lon_ponto1, lat_ponto2, lon_ponto2):
     return geopy.distance.geodesic(coord_pnt1, coord_pnt2).m
 
 
-# Função que retorna a soma das distâncias entre todos os pontos que formam um indivíduo
-def calcula_metricas(individuo):
-
-    # Armazena a distância total do indivíduo
-    distancia_total = 0
-    # Armazena o número total de ruas utilizadas pelo indivíduo
-    total_ruas = 0
-    # Total de ruas que possuem conexão
-    total_ruas_con = 0
-    # Lista auxiliar para detectar ruas repetidas
-    ruas_encontradas = []
-    # Auxiliar para detecção de ruas conectadas
-    rua_ant = None
-
-    if len(individuo.genome) > 0:
-
-        # Verifica todas as tuplas de pontos que o indivíduo contém
-        for cont, rua in enumerate(individuo.genome):
-
-            # Adiciona a distância do depósito até o primeiro e último ponto do genoma
-            if cont == 0 or cont == (len(individuo.genome) - 1):
-
-                # distancia_total += rua[0].distancia_deposito
-                pass
-
-            # Primeiro, se calcula a distância
-            distancia_total += grafo_cidade_otimizado.get_edge_data(rua[0].id, rua[1].id).get("weight")
-
-            # Em seguida, é verificada a métrica do total de ruas
-            # Se a rua já foi encontrada ela não entra para a conta
-            if rua not in ruas_encontradas:
-
-                total_ruas += 1
-            else:
-
-                ruas_encontradas.append(rua)
-
-            # Por último é verificada a quantidade de ruas que possuem ligação
-            if cont == 0:
-
-                rua_ant = rua
-            else:
-
-                # Se o primeiro ponto da rua atual for vizinho do último ponto da rua anterior
-                # Significa que essas ruas possuem uma ligação
-                if rua[0] in rua_ant[1].pontos_vizinhos:
-
-                    total_ruas_con += 1
-
-                rua_ant = rua
-
-    return [distancia_total, total_ruas, total_ruas_con]
-
-
 def retorna_maior_label():
     return Ponto.novo_label
 
@@ -826,34 +771,45 @@ def retorna_maior_label():
 # Para que um grafo seja euleriano, todos os vértices dele devem possuir grau par
 def converte_grafo_euleriano(grafo):
 
-    # Verifica se o grafo é euleriano
-    # Se não for, devem ser feitas alterações para que ele se torne um grafo euleriano
-    if not nx.is_eulerian(grafo):
+    # Conecta o grafo para que seja possível realizar o circuito
+    if not nx.is_connected(grafo):
 
-        # Cria uma lista que irá armazenar os vértices de grau impar
-        impares = []
+        conecta_grafo(grafo)
 
-        # Itera sobre todos os nós do grafo verificando o grau de cada um deles
-        for node in grafo.nodes:
+    # Utiliza a função pronta do networkx que converte o grafo para um grafo euleriano
+    return nx.eulerize(grafo)
 
-            # Se o grau do nó for impar, devem ser feitas correções
-            if len(grafo[node]) % 2 != 0:
 
-                # Então ele é adicionado na lista de vértices ímpares para ser corrigido
-                impares.append(node)
+# Se o subgrafo do cluster for desconexo, ele deve ter seus pontos conectados
+def conecta_grafo(grafo):
 
-        # Passa por cada um dos vértices, mas como em cada rodada dois vértices são corrigidos
-        # o passo do for deve ser de 2 em 2
-        for i in range(0, len(impares) - 1, 2):
+    # Variável que armazena os pontos da primeira componente conexa, que é a maior
+    primeiro_componente = None
 
-            # Retorna o menor caminho entre os dois vértice analisados no momento
-            # Isso é feito pois todas as arestas nesse caminho serão duplicadas
-            # Assim os dois vértices em questão passarão a ter grau par
-            retorno = nx.shortest_path(grafo, impares[i], impares[i + 1])
+    # Para cada componente conexa do grafo
+    for componentes in nx.connected_components(grafo):
 
-            for j in range(len(retorno) - 1):
+        # Se não for a primeira são feitas operações para conectar todas as componentes a primeira
+        if primeiro_componente is not None:
 
-                # Obtém o peso da aresta que será clonada
-                peso = grafo[retorno[j]][retorno[j + 1]][0]['weight']
-                # E adiciona ela novamente ao grafo
-                grafo.add_edge(retorno[j], retorno[j + 1], weight=peso)
+            # Converte o set para uma lista
+            comp = list(componentes)
+
+            # Lista os pontos pela sua proximidade com o ponto atual
+            proximos = nx.single_source_shortest_path_length(grafo_cidade_otimizado, comp[0])
+
+            # Para cada ponto listado acima
+            for node_prox in proximos:
+
+                # Verifica se o ponto está na primeira componente e se não é o mesmo ponto
+                # Assim é gerantido que o ponto será ligado ao mais próximo presente na primeira componente conexa
+                if (node_prox in primeiro_componente) and (comp[0] != node_prox):
+
+                    distancia_pontos = nx.single_source_dijkstra(grafo_cidade_otimizado, comp[0], node_prox)
+                    grafo.add_edge(comp[0], node_prox, weight=distancia_pontos[0])
+
+                    break
+        else:
+
+            # Obtém os pontos da componente conexa maior
+            primeiro_componente = componentes

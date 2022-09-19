@@ -16,7 +16,7 @@ class Individual:
         self.name = "i~" + str(Individual.id)
         Individual.id += 1
 
-        # Lista de pontos(Objeto Ponto) que descrevem o genoma do indivíduo
+        # Lista que descreve o genoma do indivíduo
         self.genome = genome
 
         # List of solutions
@@ -46,8 +46,6 @@ class Individual:
 
             first_half = first_half and bool(solution <= individual.solutions[i])
             second_half = second_half or bool(solution < individual.solutions[i])
-
-            i += 1
 
         return first_half and second_half
 

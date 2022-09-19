@@ -11,11 +11,12 @@ if __name__ == '__main__':
 
     print("***** TRABALHO DE CONCLUSÃO DE CURSO *****")
     print("Autor: Lucas Mateus Menezes Silva")
-    print("Título: *Ainda a definir*\n")
+    print("Título: A utilização de heurísticas na otimização das rotas de coleta de lixo na cidade de Formiga/MG\n")
     print("")
 
     # Arquivo OSM com os dados inicias
-    nome_arquivo = "entrada/teste2.osm"
+    # nome_arquivo = "entrada/teste2.osm"
+    nome_arquivo = "entrada/entrada.osm"
 
     # Leitura de arquivo e geração de arquivo sem tags desnecessárias
     # Invoca função para leitura do arquivo OSM
@@ -49,11 +50,10 @@ if __name__ == '__main__':
 
     print("Demandas de lixo aproximadas das ruas calculadas!")
 
-    # Realiza o agrupamento dos pontos por meio do k-means
-    pontos_agrupados = util.k_means()
-
-    print("Agrupamentos gerados com sucesso!")
-
     print("Processando rotas...")
-    # Após organizados e realizados os agrupamentos, é feito o processamento das rotas em cada um deles
-    util.processamento_rotas(pontos_agrupados)
+
+    melhor_front = util.processamento_rotas()
+
+    for ind in melhor_front.individuals:
+
+        print(ind.genome)

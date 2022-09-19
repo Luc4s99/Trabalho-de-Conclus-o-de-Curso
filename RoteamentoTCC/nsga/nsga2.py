@@ -6,9 +6,12 @@ Link do GitHub: https://github.com/thalesorp/NSGA-II
 E também possui partes desenvolvidas e baseadas em código desenvolvido por Mateus Soares
 Link do GitHub: https://github.com/MateusSoares/Wireless-Access-Point-Optimization
 """
-
+import copy
 from sys import maxsize
 import random
+
+import networkx as nx
+
 import RoteamentoTCC.util as util
 import numpy as np
 
@@ -22,27 +25,24 @@ class NSGA2:
     # PARÂMETROS
     # generations: Número de gerações que o algortimo genético irá executar
     # population_size: Quantidade de indivíduos por população
-    # genome_values: Lista de valores que o genoma de um indivíduo pode ter
     # mutation_rate: Probabilidade de ocorrer uma mutação em um indivíduo
     # crossover_rate: Probabilidade de ocorrer crossover
-    # truck_capacity: Capacidade em KG de carga do caminhão
-    # pontos do grafo que será analisado
-    def __init__(self, generations, population_size, genome_values, mutation_rate,
-                 crossover_rate, truck_capacity, graph_points):
+    # max_caminhoes: Quantidade máxima de caminhões que poderão ser gerados no gene de um indivíduo
+    # max_clusters: Quantidade máxima de clusters que poderão ser gerados no gene de um indivíduo
+    def __init__(self, generations, population_size, mutation_rate,
+                 crossover_rate, max_caminhoes, max_clusters):
 
         self.generations = generations
 
         self.population_size = population_size
 
-        self.genome_values = genome_values
-
         self.crossover_rate = crossover_rate
 
         self.mutation_rate = mutation_rate
 
-        self.truck_capacity = truck_capacity
+        self.max_caminhoes = max_caminhoes
 
-        self.graph_points = graph_points
+        self.max_clusters = max_clusters
 
         self.front = []
 
@@ -50,7 +50,7 @@ class NSGA2:
         # self.genotype_mutation_probability = 0.5
 
         # Inicializacao da população
-        self.population = Population(genome_values, truck_capacity)
+        self.population = Population(max_caminhoes, max_clusters)
 
         # Indica qual geração o algoritmo está executando
         self.geracao = 1
@@ -65,7 +65,7 @@ class NSGA2:
         self.evaluate(self.population)
 
         # Armazena as fronteiras selecionadas pela ordenação de dominância
-        fronts = self.fast_non_dominated_sort()
+        self.fast_non_dominated_sort()
 
         # População originada do cruzamento dos indivíduos da primeira metade da população
         offspring_population = self.usual_crossover()
@@ -78,36 +78,48 @@ class NSGA2:
         # Passa pelo número de gerações definido
         for i in range(self.generations):
 
-            # "Rt" population: union between "Pt" and "Qt", now with size of "2N"
+            # Realiza a união entre as duas populações
+            # A população agora tem seu tamanho completo
             self.population.union(offspring_population)
 
-            # "F" on NSGA-II paper
+            # Separa a população em fronteiras, onde cada fronteira tem populações
             fronts = self.fast_non_dominated_sort()
 
+            # Como as fronteiras são ordenadas pelos melhores indivíduos
+            # A primeira fronteira sempre terá as populações com os melhores indivíduos
             best_front = fronts[0]
 
+            # Cálculo do crowding distance
             self.crowding_distance_assignment(fronts)
 
-            # "Pt+1" population
+            # Depois de realizadas as operações, é gerada a próxima população, que deve ter tamanho igual a primeira
+            # Essa população é chamada de Pt+1
             next_population = self.new_population()
 
-            i = 0
-            while (next_population.size + fronts[i].size) <= self.population_size:
-                next_population.union(fronts[i])
-                i += 1
+            # Obtém indivíduos das fronterias até que a quantidade de indivíduos necessária seja alcançada
+            for front in fronts:
 
-            # Sort(Fi, <n)
-            self.sort_by_crowded_comparison(fronts[i])
+                if next_population.size < self.population_size // 2:
 
-            # "Pt+1" = "Pt+1" union fronts[i][1 : "N" - sizeof("Pt+1")]
-            amount_to_insert = self.population_size - len(next_population.individuals)
-            fronts[i].individuals = fronts[i].individuals[:amount_to_insert]
-            next_population.union(fronts[i])
+                    # Ordena os indivíduos do front pelo crowding distance
+                    self.sort_by_crowded_comparison(front)
 
+                    for ind in front.individuals:
+
+                        # Insere indivíduos na fronteira até que seu tamanho seja igual a Pt
+                        if next_population.size < self.population_size // 2:
+
+                            next_population.insert(ind)
+                        else:
+
+                            break
+
+            # Obtém a nova população Pt para a continuação do loop
             self.population = next_population
 
-            # Make new offspring population. "Qt+1" on NSGA-II paper
-            offspring_population = self.crossover()
+            # Monta a nova população Qt para a continuação do loop
+            # offspring_population = self.crossover()
+            offspring_population = self.usual_crossover()
             self.evaluate(offspring_population)
 
         return best_front
@@ -115,10 +127,93 @@ class NSGA2:
     # Função que avalia um indivíduo de acordo com as métricas propostas
     def evaluate_individual(self, individual):
 
-        # Nesta função serão verificadas 3 métricas do indivíduo
-        # 1ª: Distância total do indivíduo, 2ª: Número de ruas, 3ª: Número de ruas conectadas
-        # Será retornada uma lista com os três valores em ordem
-        return util.calcula_metricas(individual)
+        # Indica a porcentagem de lixo recolhida
+        porcentagem_lixo_recolhido = 0
+
+        # Armazena a variação de altitude
+        variacao_altitude = 0
+
+        # Lista que representa o tempo gasto pelos caminhoes, a lista inicia com zero
+        caminhoes = [0 for _ in range(individual.genome[0])]
+
+        # Realiza o agrupamento dos pontos de acordo com o parâmetro do indivíduo
+        pontos_clusterizados = util.k_means(individual.genome[1])
+
+        # Indica qual caminhão será analisado
+        vez = 0
+
+        # Lista que indica os pontos onde o lixo já foi recolhido
+        recolhido = []
+
+        # Realiza o processamento de rota para cada um dos clusters
+        for cluster in pontos_clusterizados.values():
+
+            distancia_cluster = 0
+            quantidade_lixo_cluster = 0
+
+            # Primeiramente é montado um subgrafo com os pontos do cluster
+            grafo_cluster = util.grafo_cidade_otimizado.subgraph(ponto.id for ponto in cluster).copy()
+
+            rota = []
+
+            # Verifica se o subgrafo é euleriano
+            if not nx.is_eulerian(grafo_cluster):
+
+                # Transforma em um grafo euleriano
+                grafo_cluster = util.converte_grafo_euleriano(grafo_cluster)
+
+            # Realiza a rota euleriana pelo grafo
+            rota = list(util.nx.eulerian_path(grafo_cluster))
+
+            # Verifica se foi gerado algo na rota
+            if len(rota) == 0:
+
+                print("TAMANHO DA ROTA É ZERO!")
+
+            else:
+
+                # Calcula a ida do caminhão até o cluster
+                distancia_cluster += nx.dijkstra_path_length(util.grafo_cidade_otimizado, rota[0][0], util.DEPOSITO)
+
+                # Calcula a volta do caminhao ao depósito
+                distancia_cluster += nx.dijkstra_path_length(util.grafo_cidade_otimizado,
+                                                             rota[len(rota) - 1][0], util.DEPOSITO)
+
+            # Percorre a rota, calcula o tempo e verifica o lixo coletado
+            for pnt_coleta in rota:
+
+                # Incrementa a distância percorrida na rua atual
+                distancia_cluster += grafo_cluster[pnt_coleta[0]][pnt_coleta[1]][0]["weight"]
+
+                # Verifica se esses pontos já não foram visitados por esse indivíduo e coleta
+                if pnt_coleta[0] not in recolhido:
+                    quantidade_lixo_cluster += util.pontos_otimizados[pnt_coleta[0]].quantidade_lixo
+                    recolhido.append(pnt_coleta[0])
+
+                if pnt_coleta[1] not in recolhido:
+                    quantidade_lixo_cluster += util.pontos_otimizados[pnt_coleta[1]].quantidade_lixo
+                    recolhido.append(pnt_coleta[1])
+
+                # Verifica se a carga do veículo foi ultrapassada
+                if quantidade_lixo_cluster > util.CAPACIDADE_CAMINHAO:
+
+                    break
+
+            # Incrementa a quantidade de lixo total com a quantidade do cluster
+            porcentagem_lixo_recolhido += quantidade_lixo_cluster
+
+            # Converte a distância para tempo(levando em conta que o caminhão coleta a 5km/h) em minutos
+            # E incrementa no tempo do caminhão correspondente
+            if vez == len(caminhoes):
+                vez = 0
+
+            # Realiza uma simulação do tempo gasto pelo caminhão para recolher o lixo com base na distância
+            # Está sendo usada a velocidade média de 5km/h
+            caminhoes[vez] += (distancia_cluster * 60) / 5000
+            vez += 1
+
+        # Retorna o caminhão com mais tempo e a porcentagem de lixo não recolhida
+        return [max(caminhoes), round(100 - (porcentagem_lixo_recolhido * 100) / util.quantidade_lixo_cidade)]
 
     # Função que avalia os indivíduos gerados na população
     def evaluate(self, population):
@@ -128,20 +223,17 @@ class NSGA2:
 
             # Verifica se o indivíduo já foi avaliado antes
             if not individual.solutions:
-
                 # Avalia e retorna as soluções não normalizadas
                 individual.non_normalized_solutions = self.evaluate_individual(individual)
 
         # Normalização de dados MIN MAX
         # Obtem os maiores valores dos indivíduos durante suas avaliações
-        distancia_max = np.max([i.non_normalized_solutions[0] for i in population.individuals])
-        ruas_max = np.max([i.non_normalized_solutions[1] for i in population.individuals])
-        ruas_conectadas_max = np.max([i.non_normalized_solutions[2] for i in population.individuals])
+        distancia_max_caminhao = np.max([i.non_normalized_solutions[0] for i in population.individuals])
+        lixo_max = np.max([i.non_normalized_solutions[1] for i in population.individuals])
 
         # Obtem os menores valores dos indivíduos durante suas avaliações
-        distancia_min = np.min([i.non_normalized_solutions[0] for i in population.individuals])
-        ruas_min = np.min([i.non_normalized_solutions[1] for i in population.individuals])
-        ruas_conectadas_min = np.min([i.non_normalized_solutions[2] for i in population.individuals])
+        distancia_min_caminhao = np.min([i.non_normalized_solutions[0] for i in population.individuals])
+        lixo_min = np.min([i.non_normalized_solutions[1] for i in population.individuals])
 
         # Realiza a normalização das soluções para que seus valores não sejam tão discrepantes
         # O método de normalização utilizada foi o Min-Max, que retorna valores entre [0-1]
@@ -149,14 +241,15 @@ class NSGA2:
 
             # x' = (xi - xmin) / (xmax - xmin)
             individual.solutions.append(
-                (individual.non_normalized_solutions[0] - distancia_min) / (distancia_max - distancia_min))
+                (individual.non_normalized_solutions[0] - distancia_min_caminhao) /
+                (distancia_max_caminhao - distancia_min_caminhao))
 
             individual.solutions.append(
-                (individual.non_normalized_solutions[1] - ruas_min) / (ruas_max - ruas_min))
+                (individual.non_normalized_solutions[1] - lixo_min) / (lixo_max - lixo_min))
 
-            individual.solutions.append(
-                (individual.non_normalized_solutions[2] - ruas_conectadas_min) /
-                (ruas_conectadas_max - ruas_conectadas_min))
+            # TESTE PARA IDENTIFICAR DIVISOES POR 0
+            if (distancia_max_caminhao - distancia_min_caminhao) == 0 or (lixo_max - lixo_min) == 0:
+                print("DIVISÃO POR ZERO!!!!")
 
         # Usado para calibrar, depois descomentar e plotar os gráficos do hypervolume
         # self.add_population_to_file(population)
@@ -166,7 +259,7 @@ class NSGA2:
     # Retorna uma nova população vazia
     def new_population(self):
 
-        return Population(self.genome_values, self.truck_capacity)
+        return Population(self.max_caminhoes, self.max_clusters)
 
     # Ordena os indivíduos de acordo com suas dominâncias e os ordena em fronteiras
     def fast_non_dominated_sort(self):
@@ -208,87 +301,100 @@ class NSGA2:
             if individuo_atual.domination_count == 0:
 
                 if individuo_atual not in fronts[0].individuals:
-
                     individuo_atual.rank = 1
 
                     fronts[0].insert(individuo_atual)
 
         i = 0
 
+        # Loop que vai preenchendo as fronteiras com os indivíduos
+        # Quando todos os indivíduos forem distribuídos, a última fronteira terá 0 indivíduos, e então o loop para
         while len(fronts[i].individuals) > 0:
+
+            # Com a primeira fronteira montada, agora os indivíduos devem ser distribuídos nas demais
             fronts.append(self.new_population())
+
             for individual in fronts[i].individuals:
+
+                # Para cada indivíduo que é dominado por um membro da fronteira acima da atual
                 for dominated_individual in individual.dominated_by:
+
+                    # O seu rank é diminuído em 1
                     dominated_individual.domination_count -= 1
 
-                    # Now if this dominated individual aren't dominated by anyone, insert into next front
+                    # Se seu rank - 1 for igual a zero, significa que ele não é dominado por mais ninguém
                     if dominated_individual.domination_count == 0:
-
+                        # Então o seu rank é reestabelicido e ele é adicionado na fronteira
                         # "+1" becasue "i" is index value, and rank starts from 1 and not 0
                         # "+1" because the rank it's for the next front
-                        dominated_individual.rank = i+2
-                        fronts[len(fronts)-1].insert(dominated_individual)
+                        dominated_individual.rank = i + 2
+                        fronts[len(fronts) - 1].insert(dominated_individual)
             i += 1
 
-        # Deleting empty last front created in previously loops
-        del fronts[len(fronts)-1]
+        # Retira a última fronteira que está vazia, devido ao loop acima
+        del fronts[len(fronts) - 1]
 
+        # Retorna todas as fronteiras com seus respectivos indivíduos
         return fronts
 
+    # Calcula para cada indivíduo qual o valor do seu crowding distance
     def crowding_distance_assignment(self, fronts):
 
+        # Percorre as populações presentes nas fronteiras
         for population in fronts:
 
-            last_individual_index = len(population.individuals)-1
+            last_individual_index = len(population.individuals) - 1
 
-            # Reseting this value because it's a new generation
+            # Reseta o valor da crowding distance dos indivíduos
             for individual in population.individuals:
                 individual.crowding_distance = 0
 
-            genome_index = 0
-            for genome_index in range(self.genotype_quantity):
+            # Percorre as soluções do indivíduo
+            for solution_index in range(len(population.individuals[0].solutions)):
 
-                # Sorting current population (front) according to the current objective (genome)
-                population.individuals.sort(key=lambda x: x.genome[genome_index])
+                # Ordenando a população de acordo com a solução de cada um
+                population.individuals.sort(key=lambda x: x.solutions[solution_index])
 
-                # The first and last individuals of current population (front) receive "infinite"
+                # O primeiro e último indivíduo da população atual recebem infinito como valor no crowding
                 population.individuals[0].crowding_distance = maxsize
                 population.individuals[last_individual_index].crowding_distance = maxsize
 
-                min_value, max_value = population.get_extreme_neighbours(genome_index)
+                min_value, max_value = population.get_extreme_neighbours(solution_index)
 
-                # Calculating the crowding distance of each objective (genome) of all individuals
+                # Calcula o crowding distance de cada solução para todos os indivíduos
                 for i in range(1, last_individual_index):
-                    right_neighbour_value = population.individuals[i+1].genome[genome_index]
-                    left_neighbour_value = population.individuals[i-1].genome[genome_index]
 
-                    # population.individuals[i].crowding_distance += ((right_neighbour_value - left_neighbour_value) / (max_value - min_value))
+                    right_neighbour_value = population.individuals[i + 1].solutions[solution_index]
+                    left_neighbour_value = population.individuals[i - 1].solutions[solution_index]
+
+                    # Evita casos de divisão por 0
                     if (max_value - min_value) == 0:
-                        # TODO: warning: IN CROWDING DISTANCE: division by zero!
-                        #print("IN CROWDING DISTANCE: division by zero!")
-                        population.individuals[i].crowding_distance += ((right_neighbour_value - left_neighbour_value) / 1)
+
+                        population.individuals[i].crowding_distance += (
+                                    (right_neighbour_value - left_neighbour_value) / 1)
                     else:
-                        population.individuals[i].crowding_distance += ((right_neighbour_value - left_neighbour_value) / (max_value - min_value))
+
+                        population.individuals[i].crowding_distance += (
+                                    (right_neighbour_value - left_neighbour_value) / (max_value - min_value))
 
     def crowded_comparison(self, individual_A, individual_B):
         """Return the best individual according to the crowded comparison operator
         in NSGA-II paper"""
 
         if ((individual_A.rank < individual_B.rank)
-            or ((individual_A == individual_B)
-            and (individual_A.crowding_distance > individual_B.crowding_distance))):
+                or ((individual_A == individual_B)
+                    and (individual_A.crowding_distance > individual_B.crowding_distance))):
             return individual_A
         return individual_B
 
     def sort_by_crowded_comparison(self, population):
         """Sort "population" with crowded comparison operator. Bubble sort"""
 
-        for i in range(len(population.individuals)-2):
+        for i in range(len(population.individuals) - 2):
 
             worst = population.individuals[i]
 
-            for j in range(1, len(population.individuals)-i):
-
+            for j in range(1, len(population.individuals) - i):
                 worst = self.crowded_comparison(worst, population.individuals[j])
 
             population.individuals.remove(worst)
@@ -318,71 +424,52 @@ class NSGA2:
         pontuacao_segundo_candidato = 0
 
         # Compara os dois indivíduos para retornar o melhor
-        # Primeiro verifica qual dos dois possui a menor distância
+        # Primeiro verifica qual dos dois possui o menor tempo de percurso
         if primeiro_candidato.solutions[0] < segundo_candidato.solutions[0]:
 
             pontuacao_primeiro_candidato += 1
-        elif primeiro_candidato.solutions[0] > segundo_candidato.solutions[0]:
+        else:
 
             pontuacao_segundo_candidato += 1
 
-        # Depois verifica qual possui o maior número de ruas utilizadas
-        if primeiro_candidato.solutions[0] > segundo_candidato.solutions[0]:
+        # Depois verifica qual possui o menor percentual de lixo não recolhido
+        if primeiro_candidato.solutions[1] < segundo_candidato.solutions[1]:
 
             pontuacao_primeiro_candidato += 1
-        elif primeiro_candidato.solutions[0] < segundo_candidato.solutions[0]:
+        else:
 
             pontuacao_segundo_candidato += 1
 
-        # Por último verifica qual possui o maior número de ruas conectadas
-        if primeiro_candidato.solutions[0] > segundo_candidato.solutions[0]:
-
-            pontuacao_primeiro_candidato += 1
-        elif primeiro_candidato.solutions[0] < segundo_candidato.solutions[0]:
-
-            pontuacao_segundo_candidato += 1
-
+        # Após as pontuações realizadas, verifica qual obteve maior pontuação e o retorna
         if pontuacao_primeiro_candidato > pontuacao_segundo_candidato:
-
             return primeiro_candidato
 
         return segundo_candidato
 
-    def crossover(self):
-        """Create a offspring population using the simulated binary crossover (SBX)
-        and the binary tournament selection according to the crowded comparison operator"""
+    # Realiza o cruzamento entre dois pais para a geração de dois novos indivíduos
+    # No momento o crossover utilizado é um crossover uniforme simples
+    def crossover(self, pai1, pai2):
 
-        genomes_list = list()
+        # Listas que representam o genoma das proles
+        child1_genome = list()
+        child2_genome = list()
 
-        # Getting the quantity of individuals that are needed to create
-        # TODO: This value MUST BE even
-        amount_to_create = self.population_size
+        if random.random() < 0.5:
 
-        # "step = 2" because each iteration generates two children
-        for i in range(0, amount_to_create, 2):
+            child1_genome.append(pai1.genome[0])
+            child1_genome.append(pai2.genome[1])
 
-            parent1 = self.tournament_selection()
-            parent2 = self.tournament_selection()
+            child2_genome.append(pai2.genome[0])
+            child2_genome.append(pai1.genome[1])
+        else:
 
-            # Checking if crossover will or not be made
-            if random.random() > self.crossover_rate:
-                # When crossover isn't made, the children will be a clone of the parents
-                child1_genome = parent1.genome
-                child2_genome = parent2.genome
-            else:
-                child1_genome, child2_genome = self.simulated_binary_crossover(parent1, parent2)
+            child2_genome.append(pai1.genome[0])
+            child2_genome.append(pai2.genome[1])
 
-            genomes_list.append(child1_genome)
-            genomes_list.append(child2_genome)
+            child1_genome.append(pai2.genome[0])
+            child1_genome.append(pai1.genome[1])
 
-        # Creating the offspring population
-        offspring_population = self.new_population()
-
-        # Adding the new children on that population
-        for child_genome in genomes_list:
-            offspring_population.new_individual(self.mutation(child_genome))
-
-        return offspring_population
+        return child1_genome, child2_genome
 
     # Seleciona os pais para a realização do crossover e geração dos filhos
     def usual_crossover(self):
@@ -390,32 +477,50 @@ class NSGA2:
         genomes_list = list()
 
         # O loop conta de 2 em 2 pois cada iteração gera 2 indivíduos
-        for _ in range(0, self.population_size, 2):
+        # for _ in range(0, self.population_size, 2):
+        for _ in range(0, self.population_size // 2, 2):
 
             # Seleciona dois pais bons para realizarem o crossover
             parent1 = self.usual_tournament_selection()
             parent2 = self.usual_tournament_selection()
 
-            child1_genome, child2_genome = self.simulated_binary_crossover(parent1, parent2)
+            # Verifica se será realizado o crossover entre os pais
+            # Isso é feito para que alguns indivíduos acabem sendo mantidos
+            if random.random() < self.crossover_rate:
 
+                # Realiza o crossover entre os pais e gera o genoma dos filhos
+                child1_genome, child2_genome = self.crossover(parent1, parent2)
+
+            # Se o crossover não for realizado, então é feita uma cópia dos pais que serão mantidos na população
+            else:
+
+                child1_genome = copy.deepcopy(parent1.genome)
+                child2_genome = copy.deepcopy(parent2.genome)
+
+            # Adiciona o genoma dos filhos na lista
             genomes_list.append(child1_genome)
             genomes_list.append(child2_genome)
 
-        # Creating the offspring population
+        # Verifica se não foram gerados indivíduos a mais
+        if len(genomes_list) > self.population_size // 2:
+            genomes_list.pop()
+
+        # Cria a população filha
         offspring_population = self.new_population()
 
-        # Adding the new children on that
+        # Adiciona cada uma das crias geradas a população
         for child_genome in genomes_list:
             offspring_population.new_individual(self.mutation(child_genome))
 
         return offspring_population
 
-    def simulated_binary_crossover(self, parent1, parent2):
-        """Simulated binary crossover (SBX)"""
+    # Método de crossover entre dois indivíduos
+    """def simulated_binary_crossover(self, parent1, parent2):
 
         # Distribution index. "nc" in NSGA-II paper
         crossover_constant = self.crossover_constant
 
+        # Lista que representa o genoma das proles
         child1_genome = list()
         child2_genome = list()
 
@@ -478,37 +583,27 @@ class NSGA2:
                 child1_genome.append(parent1.genome[j])
                 child2_genome.append(parent2.genome[j])
 
-        return child1_genome, child2_genome
+        return child1_genome, child2_genome"""
 
+    # Método que realiza mutação no genoma do indivíduo
     def mutation(self, genome):
-        """Mutation method"""
 
-        random.seed()
-
-        value = random.random()
-        value = random.uniform(0, 1)
-        # Checking if mutation will or not occur
-        if value > self.mutation_rate:
-            # When mutation doesn't occur, nothing happens
+        # Verifica se a mutação irá ocorrer
+        if random.uniform(0, 1) > self.mutation_rate:
+            # Se a mutação não for ocorrer, então o genoma é apenas retornado sem nenhuma modificação
             return genome
 
-        for i in range(len(genome)):
-            # Mutate that genotype
-            if random.random() < self.genotype_mutation_probability:
+        # Senão é realizado um loop no genoma para selecionar qual gene sofrerá a mutação
+        # for i in range(len(genome)):
 
-                value = self.disturb_percent * genome[i]
+        # Verifica se será o primeiro ou o segundo gene a sofrer a mutação
+        # Atualmente é utilizada uma mutação bem simples, onde apenas se soma +1 no gene selecionado
+        if random.random() < 0.5:
 
-                # Will it add or decrease?
-                if random.random() < 0.5:
-                    value = -value
+            genome[0] += 1
+        else:
 
-                genome[i] = genome[i] + value
-
-                # Making sure that it doesn't escape the bounds
-                if genome[i] > self.genome_max_value:
-                    genome[i] = self.genome_max_value
-                elif genome[i] < self.genome_min_value:
-                    genome[i] = self.genome_min_value
+            genome[1] += 1
 
         return genome
 
