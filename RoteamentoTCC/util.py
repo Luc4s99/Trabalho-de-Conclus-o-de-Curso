@@ -51,7 +51,7 @@ CAPACIDADE_CAMINHAO = 10000
 
 # Identifica o id ponto que representa o depósito
 DEPOSITO = '3627233002'
-# Identificador do depósito no arquivo utilizado para testes(Somente para testes)
+# Identificador do depósito no arquivo utilizado para testes
 # DEPOSITO = '7560818573'
 
 # ID's de pontos que serão retirados "manualmente" para que o NSGA-II seja melhor calibrado
@@ -776,6 +776,7 @@ def converte_grafo_euleriano(grafo):
 
         conecta_grafo(grafo)
 
+    # TODO Função abaixo está causando lentidão
     # Utiliza a função pronta do networkx que converte o grafo para um grafo euleriano
     return nx.eulerize(grafo)
 

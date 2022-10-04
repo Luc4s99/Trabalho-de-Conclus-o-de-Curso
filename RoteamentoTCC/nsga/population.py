@@ -44,9 +44,11 @@ class Population:
             # Gera a quantidade de caminhões que serão utilizados para realizar a coleta
             genome.append(random.randint(1, self.max_caminhoes))
 
-            # TODO Testar com quantidades mínimas diferentes
             # Gera a quantidade de cluster que serão gerados para a cidade
             genome.append(random.randint(1, self.max_clusters))
+
+            # Inicia a lista com os pontos de início de cada cluster
+            genome.append(list())
 
             self.new_individual(genome)
 
