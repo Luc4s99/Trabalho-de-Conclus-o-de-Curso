@@ -13,12 +13,12 @@ import random
 import networkx as nx
 
 import RoteamentoTCC.util as util
-import numpy as np
 
 # Importando métodos úteis da classe população
 from RoteamentoTCC.nsga.population import Population
 
 from sklearn.preprocessing import MinMaxScaler
+
 
 # Classe que define o algoritmo NSGA-II
 class NSGA2:
@@ -31,7 +31,7 @@ class NSGA2:
     # max_caminhoes: Quantidade máxima de caminhões que poderão ser gerados no gene de um indivíduo
     # max_clusters: Quantidade máxima de clusters que poderão ser gerados no gene de um indivíduo
     def __init__(self, generations, population_size, mutation_rate,
-                 crossover_rate, max_caminhoes, max_clusters):
+                 crossover_rate, max_caminhoes, min_clusters, max_clusters):
 
         self.generations = generations
 
@@ -43,6 +43,8 @@ class NSGA2:
 
         self.max_caminhoes = max_caminhoes
 
+        self.min_clusters = min_clusters
+
         self.max_clusters = max_clusters
 
         self.front = []
@@ -51,7 +53,7 @@ class NSGA2:
         # self.genotype_mutation_probability = 0.5
 
         # Inicializacao da população
-        self.population = Population(max_caminhoes, max_clusters)
+        self.population = Population(max_caminhoes, min_clusters, max_clusters)
 
         # Indica qual geração o algoritmo está executando
         self.geracao = 1
@@ -78,6 +80,8 @@ class NSGA2:
 
         # Passa pelo número de gerações definido
         for i in range(self.generations):
+
+            print(f"    -> Geração {i + 1}")
 
             # Realiza a união entre as duas populações
             # A população agora tem seu tamanho completo
@@ -137,7 +141,7 @@ class NSGA2:
         individual.genome[2] = ([-1 for _ in range(individual.genome[1])])
 
         # Lista que representa o tempo gasto pelos caminhoes, a lista inicia com zero
-        caminhoes = [0 for _ in range(individual.genome[0])]
+        tempo_caminhoes = [0 for _ in range(individual.genome[0])]
 
         # Realiza o agrupamento dos pontos de acordo com o parâmetro do indivíduo
         pontos_clusterizados = util.k_means(individual.genome[1])
@@ -163,7 +167,7 @@ class NSGA2:
             individual.genome[2][id_cluster] = ponto_inicio
 
             # Primeiramente é montado um subgrafo com os pontos do cluster
-            grafo_cluster = util.grafo_cidade_otimizado.subgraph(ponto.id for ponto in cluster).copy()
+            grafo_cluster = util.grafo_cidade_simplificado.subgraph(ponto.id for ponto in cluster).copy()
 
             # Verifica se o subgrafo é euleriano
             if not nx.is_eulerian(grafo_cluster):
@@ -183,10 +187,10 @@ class NSGA2:
             else:
 
                 # Calcula a ida do caminhão até o cluster
-                distancia_cluster += nx.dijkstra_path_length(util.grafo_cidade_otimizado, rota[0][0], util.DEPOSITO)
+                distancia_cluster += nx.dijkstra_path_length(util.grafo_cidade_simplificado, rota[0][0], util.DEPOSITO)
 
                 # Calcula a volta do caminhao ao depósito
-                distancia_cluster += nx.dijkstra_path_length(util.grafo_cidade_otimizado,
+                distancia_cluster += nx.dijkstra_path_length(util.grafo_cidade_simplificado,
                                                              rota[len(rota) - 1][0], util.DEPOSITO)
 
             # Percorre a rota, calcula o tempo e verifica o lixo coletado
@@ -218,18 +222,21 @@ class NSGA2:
 
             # Converte a distância para tempo(levando em conta que o caminhão coleta a 5km/h) em minutos
             # E incrementa no tempo do caminhão correspondente
-            if vez == len(caminhoes):
+            if vez == len(tempo_caminhoes):
 
                 vez = 0
 
             # Realiza uma simulação do tempo gasto pelo caminhão para recolher o lixo com base na distância
-            # Está sendo usada a velocidade média de 5km/h
-            caminhoes[vez] += (distancia_cluster * 60) / 5000
+            # tempo_caminhoes[vez] += (distancia_cluster * 60) / 5000
+            tempo_caminhoes[vez] += distancia_cluster
             vez += 1
 
-        # Retorna o caminhão com mais tempo, a porcentagem de lixo não recolhida e a variação de altitude
-        return [max(caminhoes), round(100 - (porcentagem_lixo_recolhido * 100) / util.quantidade_lixo_cidade),
-                variacao_altitude]
+        # Retorna a soma de tempo dos caminhões: Métrica de minimização
+        # A porcentagem de lixo não recolhida: Métrica de minimização
+        # A variação de altitude: Métrica de minimização
+        # A quantidade de caminhões = |(lixo total / capacidade caminhao) - quantidade gerada|: Minimização
+        return [sum(tempo_caminhoes), round(100 - (porcentagem_lixo_recolhido * 100) / util.quantidade_lixo_cidade),
+                variacao_altitude, abs((util.quantidade_lixo_cidade / util.CAPACIDADE_CAMINHAO) - individual.genome[0])]
 
     # Função que avalia os indivíduos gerados na população
     def evaluate(self, population):
@@ -251,14 +258,14 @@ class NSGA2:
 
             # Para a normalização os dados precisam estar no formato de uma matriz
             matrix_normalizar = [[individual.non_normalized_solutions[0]], [individual.non_normalized_solutions[1]],
-                                 [individual.non_normalized_solutions[2]]]
+                                 [individual.non_normalized_solutions[2]], [individual.non_normalized_solutions[3]]]
 
             # Realiza a normalização dos dados do indivíduo em questão
             escalar.fit(matrix_normalizar)
             normalizado = escalar.transform(matrix_normalizar)
 
             # Insere o resultado nas soluções normalizadas do indivíduo
-            individual.solutions = [normalizado[0][0], normalizado[1][0], normalizado[2][0]]
+            individual.solutions = [normalizado[0][0], normalizado[1][0], normalizado[2][0], normalizado[3][0]]
 
         # Usado para calibrar, depois descomentar e plotar os gráficos do hypervolume
         # self.add_population_to_file(population)
@@ -268,7 +275,7 @@ class NSGA2:
     # Retorna uma nova população vazia
     def new_population(self):
 
-        return Population(self.max_caminhoes, self.max_clusters)
+        return Population(self.max_caminhoes, self.min_clusters, self.max_clusters)
 
     # Ordena os indivíduos de acordo com suas dominâncias e os ordena em fronteiras
     def fast_non_dominated_sort(self):
@@ -449,8 +456,16 @@ class NSGA2:
 
             pontuacao_segundo_candidato += 1
 
-        # E por fim verifica qual deles possui a menor variação de altitude
+        # Verifica qual deles possui a menor variação de altitude
         if primeiro_candidato.solutions[2] < segundo_candidato.solutions[2]:
+
+            pontuacao_primeiro_candidato += 1
+        else:
+
+            pontuacao_segundo_candidato += 1
+
+        # E por fim verifica qual possui a quantidade de caminhões mais otimizada
+        if primeiro_candidato.solutions[3] < segundo_candidato.solutions[3]:
 
             pontuacao_primeiro_candidato += 1
         else:

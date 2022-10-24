@@ -6,17 +6,11 @@ Link do GitHub: https://github.com/SauloRicardo/TCC_Final
 """
 
 import RoteamentoTCC.util as util
+from datetime import datetime
+import cProfile
 
-if __name__ == '__main__':
 
-    print("***** TRABALHO DE CONCLUSÃO DE CURSO *****")
-    print("Autor: Lucas Mateus Menezes Silva")
-    print("Título: A utilização de heurísticas na otimização das rotas de coleta de lixo na cidade de Formiga/MG\n")
-    print("")
-
-    # Arquivo OSM com os dados inicias
-    # nome_arquivo = "entrada/teste2.osm"
-    nome_arquivo = "entrada/entrada.osm"
+def main():
 
     # Leitura de arquivo e geração de arquivo sem tags desnecessárias
     # Invoca função para leitura do arquivo OSM
@@ -55,5 +49,25 @@ if __name__ == '__main__':
     melhor_front = util.processamento_rotas()
 
     for ind in melhor_front.individuals:
-
         print(ind.genome)
+
+
+if __name__ == '__main__':
+
+    print("***** TRABALHO DE CONCLUSÃO DE CURSO *****")
+    print("Autor: Lucas Mateus Menezes Silva")
+    print("Título: A utilização de heurísticas na otimização das rotas de coleta de lixo na cidade de Formiga/MG\n")
+    print("")
+
+    agora = datetime.now()
+    print("Início: ", agora.strftime("%H:%M:%S"))
+
+    # Arquivo OSM com os dados inicias
+    # nome_arquivo = "entrada/entrada_pequena.osm"
+    nome_arquivo = "entrada/entrada_grande.osm"
+
+    # cProfile.run('main()', filename='saida/profiling.cprof')
+    main()
+
+    agora = datetime.now()
+    print("Fim: ", agora.strftime("%H:%M:%S"))

@@ -16,7 +16,7 @@ from .individual import Individual
 
 class Population:
 
-    def __init__(self, max_caminhoes, max_clusters):
+    def __init__(self, max_caminhoes, min_clusters, max_clusters):
 
         # Semente para geração de valores aleatórios
         random.seed()
@@ -28,6 +28,8 @@ class Population:
         self.fronts = list()
 
         self.max_caminhoes = max_caminhoes
+
+        self.min_clusters = min_clusters
 
         self.max_clusters = max_clusters
 
@@ -45,7 +47,7 @@ class Population:
             genome.append(random.randint(1, self.max_caminhoes))
 
             # Gera a quantidade de cluster que serão gerados para a cidade
-            genome.append(random.randint(1, self.max_clusters))
+            genome.append(random.randint(self.min_clusters, self.max_clusters))
 
             # Inicia a lista com os pontos de início de cada cluster
             genome.append(list())

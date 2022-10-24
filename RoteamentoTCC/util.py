@@ -28,6 +28,8 @@ from sklearn.cluster import KMeans
 import gc
 # Classe que define e executa o Non-dominated Sorting Genetic Algorithm II
 from RoteamentoTCC.nsga.nsga2 import NSGA2
+# Biblioteca para traduzer código python para código de máquina, deixando a execução mais rápida
+from numba import cuda, jit
 
 # Parâmetros para a plotagem de imagens
 plt.rcParams['figure.figsize'] = (16, 9)
@@ -42,12 +44,12 @@ pontos_otimizados = {}
 # Armazena em um dicionario as ruas que foram mapeadas na leitura do arquivo
 ruas = {}
 
-# Grafo que será utilizado para representar o mapa da cidade já otimizado
-# grafo_cidade_otimizado = nx.Graph()
-grafo_cidade_otimizado = nx.MultiGraph()
+# Grafo que será utilizado para representar o mapa da cidade já simplificado
+grafo_cidade_simplificado = nx.MultiGraph()
 
 # Capacidade de lixo que um caminhão de lixo possuiem KG
 CAPACIDADE_CAMINHAO = 10000
+# CAPACIDADE_CAMINHAO = 100
 
 # Identifica o id ponto que representa o depósito
 DEPOSITO = '3627233002'
@@ -415,7 +417,7 @@ def atualiza_vizinhos():
         ponto.pontos_vizinhos.clear()
 
     # Então insere os vizinhos atualizados, com base nas arestas do grafo
-    for tupla in grafo_cidade_otimizado.edges:
+    for tupla in grafo_cidade_simplificado.edges:
         pontos_otimizados[tupla[0]].pontos_vizinhos.append(pontos_otimizados[tupla[1]])
         pontos_otimizados[tupla[1]].pontos_vizinhos.append(pontos_otimizados[tupla[0]])
 
@@ -438,7 +440,7 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
                 index_ponto = rua.pontos.index(ponto_rua)
 
                 # Insere cada um dos pontos no grafo para que sejam plotados
-                grafo_cidade_otimizado.add_node(ponto_rua.id)
+                grafo_cidade_simplificado.add_node(ponto_rua.id)
 
                 # Percorre novamente todos os pontos que formam aquela rua
                 for ponto_rua_ligar in rua.pontos:
@@ -454,18 +456,18 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
                             distancia_pontos = calcula_distancia_real(rua_id, ponto_rua, ponto_rua_ligar)
 
                             # Insere a aresta no grafo
-                            grafo_cidade_otimizado.add_edge(ponto_rua.id, ponto_rua_ligar.id,
-                                                            weight=distancia_pontos)
+                            grafo_cidade_simplificado.add_edge(ponto_rua.id, ponto_rua_ligar.id,
+                                                               weight=distancia_pontos)
 
                             # Para o for, pois a ligação desse ponto já foi encontrada
                             break
 
     # Armazena as coordenadas dos pontos para que seja realizada a plotagem
-    for node in nx.nodes(grafo_cidade_otimizado):
+    for node in nx.nodes(grafo_cidade_simplificado):
         coordenadas_pontos[node] = pontos[node].retorna_coordenadas()
 
     # Desenha a figura e salva com o nome definido
-    nx.draw(grafo_cidade_otimizado, node_size=0.5, node_color='grey', alpha=0.5, with_labels=False,
+    nx.draw(grafo_cidade_simplificado, node_size=0.5, node_color='grey', alpha=0.5, with_labels=False,
             pos=coordenadas_pontos)
     plt.savefig(nome_arquivo_saida, dpi=500)
 
@@ -616,7 +618,7 @@ def calcula_demandas(nome_arquivo):
     coordenadas_pontos = {}
 
     # Armazena as coordenadas dos pontos para que seja realizada a plotagem
-    for node in nx.nodes(grafo_cidade_otimizado):
+    for node in nx.nodes(grafo_cidade_simplificado):
         coordenadas_pontos[node] = pontos[node].retorna_coordenadas()
 
     # Após gerar as demandas será printado o grafo com novos dados
@@ -626,7 +628,7 @@ def calcula_demandas(nome_arquivo):
     tamanhos = []
 
     # Percorre os nós para adicionar informações nas duas listas acima
-    for node in grafo_cidade_otimizado:
+    for node in grafo_cidade_simplificado:
 
         # Se o nó for o depósito, recebe uma coloração e tamanho único
         if node == DEPOSITO:
@@ -655,7 +657,7 @@ def calcula_demandas(nome_arquivo):
                 tamanhos.append(10)
 
     # Desenha a figura e salva com o nome, cores e tamanho definidos
-    nx.draw(grafo_cidade_otimizado, node_size=tamanhos, node_color=cores, alpha=0.5, with_labels=False,
+    nx.draw(grafo_cidade_simplificado, node_size=tamanhos, node_color=cores, alpha=0.5, with_labels=False,
             pos=coordenadas_pontos)
     plt.savefig(nome_arquivo, dpi=500)
 
@@ -691,8 +693,9 @@ def k_means(n_cluster):
     # Cria o array pela biblioteca do numpy
     coordenadas_pontos = np.array(matriz)
 
+    # TODO Testar diferentes quantidades de iterações. Original: 300
     # Realiza uma instância do algoritmo do kmeans
-    kmeans = KMeans(n_cluster, init='k-means++', n_init=10, max_iter=300)
+    kmeans = KMeans(n_cluster, init='k-means++', n_init=10, max_iter=100)
 
     # Executa o kmeans para encontrar a localização que devem ficar os agrupamentos
     pred_y = kmeans.fit_predict(coordenadas_pontos)
@@ -749,7 +752,8 @@ def k_means(n_cluster):
 def processamento_rotas():
 
     # O tamanho da população deve ser sempre par
-    nsga = NSGA2(5, 10, 0.05, 0.85, 30, 30)
+    # A quantidade mínima de clusters é dividida por 2 par dar um maior espaço de busca para o algoritmo
+    nsga = NSGA2(5, 10, 0.05, 0.85, 30, int((quantidade_lixo_cidade / CAPACIDADE_CAMINHAO) / 2), 30)
 
     return nsga.run()
 
@@ -776,7 +780,6 @@ def converte_grafo_euleriano(grafo):
 
         conecta_grafo(grafo)
 
-    # TODO Função abaixo está causando lentidão
     # Utiliza a função pronta do networkx que converte o grafo para um grafo euleriano
     return nx.eulerize(grafo)
 
@@ -797,7 +800,7 @@ def conecta_grafo(grafo):
             comp = list(componentes)
 
             # Lista os pontos pela sua proximidade com o ponto atual
-            proximos = nx.single_source_shortest_path_length(grafo_cidade_otimizado, comp[0])
+            proximos = nx.single_source_shortest_path_length(grafo_cidade_simplificado, comp[0])
 
             # Para cada ponto listado acima
             for node_prox in proximos:
@@ -806,7 +809,7 @@ def conecta_grafo(grafo):
                 # Assim é gerantido que o ponto será ligado ao mais próximo presente na primeira componente conexa
                 if (node_prox in primeiro_componente) and (comp[0] != node_prox):
 
-                    distancia_pontos = nx.single_source_dijkstra(grafo_cidade_otimizado, comp[0], node_prox)
+                    distancia_pontos = nx.single_source_dijkstra(grafo_cidade_simplificado, comp[0], node_prox)
                     grafo.add_edge(comp[0], node_prox, weight=distancia_pontos[0])
 
                     break
