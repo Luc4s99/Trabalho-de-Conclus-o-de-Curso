@@ -6,18 +6,21 @@ Link do GitHub: https://github.com/thalesorp/NSGA-II
 E também possui partes desenvolvidas e baseadas em código desenvolvido por Mateus Soares
 Link do GitHub: https://github.com/MateusSoares/Wireless-Access-Point-Optimization
 """
-import copy
-from sys import maxsize
+import sys
 import random
-
+from pygmo import hypervolume
 import networkx as nx
-
+import matplotlib.pyplot as plt
 import RoteamentoTCC.util as util
 
 # Importando métodos úteis da classe população
 from RoteamentoTCC.nsga.population import Population
-
+# Importação do normalizador de dados
 from sklearn.preprocessing import MinMaxScaler
+# Biblioteca para medição de tempo
+import time
+# Biblioteca com comandos úteis do sistema operacional
+import os
 
 
 # Classe que define o algoritmo NSGA-II
@@ -49,6 +52,15 @@ class NSGA2:
 
         self.front = []
 
+        self.population_file_name = "population_evolution.txt"
+
+        self.factorial_file_name = f'{generations}g-{population_size}p-{mutation_rate}m-{crossover_rate}c'
+
+        self.runtime = 0
+
+        # TODO Como definir esse ponto de referência?
+        self.create_front_file("[2, 2, 2, 2]")
+
         # Depende da forma que será feita a mutação
         # self.genotype_mutation_probability = 0.5
 
@@ -60,6 +72,8 @@ class NSGA2:
 
     # Método principal que executa o NSGA-II
     def run(self):
+
+        start_time = time.time()
 
         # Criando a população inicial Pt
         self.population.initiate(self.population_size // 2)
@@ -81,7 +95,7 @@ class NSGA2:
         # Passa pelo número de gerações definido
         for i in range(self.generations):
 
-            print(f"    -> Geração {i + 1}")
+            print(f"\t-> Geração {i + 1}")
 
             # Realiza a união entre as duas populações
             # A população agora tem seu tamanho completo
@@ -125,6 +139,10 @@ class NSGA2:
             # Monta a nova população Qt para a continuação do loop
             offspring_population = self.usual_crossover()
             self.evaluate(offspring_population)
+
+        self.runtime = time.time() - start_time
+
+        self.calculate_hypervolume()
 
         return best_front
 
@@ -268,7 +286,7 @@ class NSGA2:
             individual.solutions = [normalizado[0][0], normalizado[1][0], normalizado[2][0], normalizado[3][0]]
 
         # Usado para calibrar, depois descomentar e plotar os gráficos do hypervolume
-        # self.add_population_to_file(population)
+        self.add_population_to_file(population)
 
         self.geracao += 1
 
@@ -372,8 +390,8 @@ class NSGA2:
                 population.individuals.sort(key=lambda x: x.solutions[solution_index])
 
                 # O primeiro e último indivíduo da população atual recebem infinito como valor no crowding
-                population.individuals[0].crowding_distance = maxsize
-                population.individuals[last_individual_index].crowding_distance = maxsize
+                population.individuals[0].crowding_distance = sys.maxsize
+                population.individuals[last_individual_index].crowding_distance = sys.maxsize
 
                 min_value, max_value = population.get_extreme_neighbours(solution_index)
 
@@ -486,8 +504,10 @@ class NSGA2:
         child1_genome = list()
         child2_genome = list()
 
+        # Probabilidade de 50% de pegar algum dos pais
         if random.random() < 0.5:
 
+            # O genoma de index 1 e 2, devem vir sempre do mesmo pai pois eles possuem relação
             child1_genome.append(pai1.genome[0])
             child1_genome.append(pai2.genome[1])
             child1_genome.append(pai2.genome[2])
@@ -496,6 +516,7 @@ class NSGA2:
             child2_genome.append(pai1.genome[1])
             child2_genome.append(pai1.genome[2])
 
+            # Após a geração das proles, é feita a mutação
             child1_genome = self.mutation(child1_genome, pai2.pontos_clusterizados)
             child2_genome = self.mutation(child2_genome, pai1.pontos_clusterizados)
         else:
@@ -511,6 +532,7 @@ class NSGA2:
             child1_genome = self.mutation(child1_genome, pai1.pontos_clusterizados)
             child2_genome = self.mutation(child2_genome, pai2.pontos_clusterizados)
 
+        # Retorna os dois indivíduos resultantes do cruzamento
         return child1_genome, child2_genome
 
     # Seleciona os pais para a realização do crossover e geração dos filhos
@@ -558,77 +580,6 @@ class NSGA2:
 
         return offspring_population
 
-    # Método de crossover entre dois indivíduos
-    """def simulated_binary_crossover(self, parent1, parent2):
-
-        # Distribution index. "nc" in NSGA-II paper
-        crossover_constant = self.crossover_constant
-
-        # Lista que representa o genoma das proles
-        child1_genome = list()
-        child2_genome = list()
-
-        for j in range(self.genotype_quantity):
-
-            # Each genotype has a 50% chance of changing its value
-            # TODO: This should be removed when dealing with one-dimensional solutions
-            '''
-            if (random.random() > 0.5) and (self.genotype_quantity != 1):
-                # In this case, the children will get the value of the parents
-                child1_genome.append(parent1.genome[j])
-                child2_genome.append(parent2.genome[j])
-                continue
-            '''
-
-            # "y1" is the lowest value between parent1 and parent2. "y2" gets the other value
-            if parent1.genome[j] < parent2.genome[j]:
-                y1 = parent1.genome[j]
-                y2 = parent2.genome[j]
-            else:
-                y1 = parent2.genome[j]
-                y2 = parent1.genome[j]
-
-            # EPS: precision error tolerance, its value is 1.0e-14 (global constant)
-            eps = 0.000000000000010 #1.0e-14
-            # If the value in parent1 is not the same of parent2
-            if abs(parent1.genome[j] - parent2.genome[j]) > eps:
-                # Lower and upper limit of genotype of an individual
-                lower_bound = self.genome_min_value
-                upper_bound = self.genome_max_value
-
-                u = random.random()
-
-                # Calculation of the first child
-                beta = 1 + (2 / (y2 - y1)) * min((y1 - lower_bound), (upper_bound - y2))
-                alpha = 2 - pow(beta, -(crossover_constant + 1))
-                if u <= (1/alpha):
-                    beta_bar = pow(alpha * u, 1/(crossover_constant + 1))
-                else:
-                    beta_bar = pow(1/(2 - (alpha * u)), 1/(crossover_constant + 1))
-                child1_genotype = 0.5 * ((y1 + y2) - beta_bar * (y2 - y1))
-
-                # Calculation of the second child
-                beta = 1 + (2 / (y2 - y1)) * min((y1 - lower_bound), (upper_bound - y2))
-                alpha = 2 - pow(beta, -(crossover_constant + 1))
-                if u <= (1/alpha):
-                    beta_bar = pow(alpha * u, 1/(crossover_constant + 1))
-                else:
-                    beta_bar = pow(1/(2 - (alpha * u)), 1/(crossover_constant + 1))
-                child2_genotype = 0.5 * ((y1 + y2) + beta_bar * (y2 - y1))
-
-                child1_genome.append(child1_genotype)
-                child2_genome.append(child2_genotype)
-
-            # The paper is not very clear about this, but i assume, in the equation of beta (not beta_bar),
-            # y2 and y1, since they could not have been calculated yet, refer to the parents
-            # So, if both parents are equal at the specified variable, the divisor would be zero
-            # In this case, the children should have the same value as the parents. 
-            else:
-                child1_genome.append(parent1.genome[j])
-                child2_genome.append(parent2.genome[j])
-
-        return child1_genome, child2_genome"""
-
     # Método que realiza mutação no genoma do indivíduo
     def mutation(self, genome, pontos_cluster):
 
@@ -642,6 +593,7 @@ class NSGA2:
         # Atualmente é utilizada uma mutação bem simples, onde apenas se soma +1 no gene selecionado
         if random.random() < 0.5:
 
+            # TODO Colocar também opção para subtrair os valores?
             genome[0] += 1
         else:
 
@@ -655,6 +607,65 @@ class NSGA2:
                 genome[2][i] = random.choice(pontos_cluster[i])
 
         return genome
+
+    # Cria o arquivo do front e insere o ponto de referência para o cálculo do hypervolume
+    def create_front_file(self, reference_point):
+
+        with open(self.population_file_name, "w") as file_:
+
+            file_.write(reference_point + "\n")
+
+    # Insere no arquivo a melhor front para o formato que será utilizado no cálculo do hypervolume
+    def add_population_to_file(self, front):
+
+        with open(self.population_file_name, "a") as file_:
+
+            objectives = "["
+
+            for individual in self.population.individuals:
+
+                objectives += str(individual.solutions) + ", "
+
+            objectives = objectives[:-2] + "]\n"
+
+            file_.write(objectives)
+
+    # Executa o cálculo de hypervolume e salva num arquivo
+    def calculate_hypervolume(self):
+
+        population_file_name = "population_evolution.txt"
+        output_file_name = "output_" + self.factorial_file_name + ".txt"
+
+        fronts = []
+        result = []
+
+        with open(population_file_name, 'r') as f:
+            hv_ref = eval(f.readline())
+            for line in f:
+                fronts.append(eval(line))
+
+        for front in fronts:
+            hv = hypervolume(front)
+            result.append(hv.compute(hv_ref))
+
+        try:
+            with open(output_file_name, "a") as f:
+                line = str(result[-1]) + "," + str(self.runtime) + "\n"
+                f.write(line)
+        except IOError:
+            with open(output_file_name, "w") as f:
+                line = "hv\ttime\n"
+                f.write(line)
+                line = str(result[-1]) + "," + str(self.runtime) + "\n"
+                f.write(line)
+
+        file_path = os.path.realpath(__file__)
+        directory = file_path[:-5]
+
+        plt.plot(range(1, len(result) + 1), result, 'ro')
+        plt.ylabel("hypervolume Score")
+        plt.xlabel("Generations")
+        plt.savefig(directory + "hypervolume.png")
 
     # Utils
     def _show_fronts(self, fronts):

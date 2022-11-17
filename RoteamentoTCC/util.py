@@ -3,10 +3,14 @@
 Este código possui partes desenvolvidas ou baseadas em código desenvolvido por Saulo Ricardo
 Link do GitHub: https://github.com/SauloRicardo/TCC_Final
 
+E também possui partes desenvolvidas e baseadas em código desenvolvido por Mateus Soares
+Link do GitHub: https://github.com/MateusSoares/Wireless-Access-Point-Optimization
+
 """
 
 # Arquivo com métodos úteis para a aplicação
 # Biblioteca para leitura do arquivo OSM
+import random
 import xml.etree.cElementTree as ET
 # Biblioteca para plotagem de dados no google maps
 import gmplot
@@ -28,8 +32,9 @@ from sklearn.cluster import KMeans
 import gc
 # Classe que define e executa o Non-dominated Sorting Genetic Algorithm II
 from RoteamentoTCC.nsga.nsga2 import NSGA2
-# Biblioteca para traduzer código python para código de máquina, deixando a execução mais rápida
-from numba import cuda, jit
+# Bibliotecas para criação de arquivos temporários
+import tempfile
+import shutil
 
 # Parâmetros para a plotagem de imagens
 plt.rcParams['figure.figsize'] = (16, 9)
@@ -48,13 +53,13 @@ ruas = {}
 grafo_cidade_simplificado = nx.MultiGraph()
 
 # Capacidade de lixo que um caminhão de lixo possuiem KG
-CAPACIDADE_CAMINHAO = 10000
-# CAPACIDADE_CAMINHAO = 100
+# CAPACIDADE_CAMINHAO = 10000
+CAPACIDADE_CAMINHAO = 100
 
-# Identifica o id ponto que representa o depósito
-DEPOSITO = '3627233002'
+# Identifica o id do ponto que representa o depósito
+# DEPOSITO = '3627233002'
 # Identificador do depósito no arquivo utilizado para testes
-# DEPOSITO = '7560818573'
+DEPOSITO = '7560818573'
 
 # ID's de pontos que serão retirados "manualmente" para que o NSGA-II seja melhor calibrado
 pontos_retirar_manual = ['2386701666', '2386701653', '353461444', '8256516317', '1344105186', '2386701633',
@@ -749,11 +754,12 @@ def k_means(n_cluster):
 
 
 # Função que realiza o processamento das rotas nos agrupamentos gerados
-def processamento_rotas():
+def processamento_rotas(geracoes, populacao, mutacao, crossover):
 
     # O tamanho da população deve ser sempre par
     # A quantidade mínima de clusters é dividida por 2 par dar um maior espaço de busca para o algoritmo
-    nsga = NSGA2(5, 10, 0.05, 0.85, 30, int((quantidade_lixo_cidade / CAPACIDADE_CAMINHAO) / 2), 30)
+    nsga = NSGA2(geracoes, populacao, mutacao, crossover, 30, int((quantidade_lixo_cidade / CAPACIDADE_CAMINHAO) / 2),
+                 30)
 
     return nsga.run()
 
@@ -817,3 +823,103 @@ def conecta_grafo(grafo):
 
             # Obtém os pontos da componente conexa maior
             primeiro_componente = componentes
+
+
+def get_configuration_for_execute():
+
+    with open("configurations.log", "r") as input_file:
+
+        for line in input_file:
+
+            if not line.startswith("#"):
+
+                return eval(line)
+
+    return False
+
+
+def save_configuration_executed(config):
+
+    line_to_modify = f'{config}\n'
+
+    with open("configurations.log", "r") as input_file, tempfile.NamedTemporaryFile("w", delete=False) as output_file:
+
+        for line in input_file:
+
+            if line == line_to_modify:
+
+                output_file.write("# " + line)
+            else:
+
+                output_file.write(line)
+
+    shutil.move(output_file.name, "configurations.log")
+
+
+def projeto_fatorial():
+
+    a1, a2 = 5, 10  # Gerações
+    b1, b2 = 10, 20  # Tamanho da população
+    c1, c2 = 0.05, 0.1  # Taxa de mutação
+    d1, d2 = 0.85, 0.95  # Taxa de crossover
+
+    configurations = {
+        "1": [a2, b2, c2, d2],
+        "2": [a2, b2, c2, d1],
+        "3": [a2, b2, c1, d2],
+        "4": [a2, b2, c1, d1],
+        "5": [a2, b1, c2, d2],
+        "6": [a2, b1, c2, d1],
+        "7": [a2, b1, c1, d2],
+        "8": [a2, b1, c1, d1],
+        "9": [a1, b2, c2, d2],
+        "10": [a1, b2, c2, d1],
+        "11": [a1, b2, c1, d2],
+        "12": [a1, b2, c1, d1],
+        "13": [a1, b1, c2, d2],
+        "14": [a1, b1, c2, d1],
+        "15": [a1, b1, c1, d2],
+        "16": [a1, b1, c1, d1],
+    }
+
+    # Lista com as linhas do arquivo
+    linhas = []
+
+    # Cria o arquivo de configurações
+    with open("configurations.log", "w") as arq_configuracao:
+
+        # Passa por cada uma das configurações
+        for config in configurations.keys():
+
+            # Número de vezes que cada configuração será testada
+            for iteracao in range(3):
+
+                # Adiciona a linha na lista
+                linhas.append(f"[{config}, {iteracao}]\n")
+
+        # Após todas as linhas geradas, percorre a lista que as armazena
+        while linhas:
+
+            # Escrevendo no arquivo um linha aleatoria, para que uma configuração não seja prejudicada tendo testes
+            # executados um após o outro
+            linha = random.choice(linhas)
+            arq_configuracao.write(linha)
+            linhas.remove(linha)
+
+    arq_configuracao.close()
+
+    configuration_and_iteration = get_configuration_for_execute()
+
+    numero_config = 1
+
+    while configuration_and_iteration:
+
+        configuration = str(configuration_and_iteration[0])
+
+        print(f"Iteração {numero_config}: Configuração {configuration}\n")
+
+        parameter = configurations[configuration]
+        processamento_rotas(parameter[0], parameter[1], parameter[2], parameter[3])
+
+        save_configuration_executed(configuration_and_iteration)
+        configuration_and_iteration = get_configuration_for_execute()
