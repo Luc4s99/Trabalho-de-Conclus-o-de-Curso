@@ -53,13 +53,13 @@ ruas = {}
 grafo_cidade_simplificado = nx.MultiGraph()
 
 # Capacidade de lixo que um caminhão de lixo possuiem KG
-# CAPACIDADE_CAMINHAO = 10000
-CAPACIDADE_CAMINHAO = 100
+CAPACIDADE_CAMINHAO = 10000
+# CAPACIDADE_CAMINHAO = 100
 
 # Identifica o id do ponto que representa o depósito
-# DEPOSITO = '3627233002'
+DEPOSITO = '3627233002'
 # Identificador do depósito no arquivo utilizado para testes
-DEPOSITO = '7560818573'
+# DEPOSITO = '7560818573'
 
 # ID's de pontos que serão retirados "manualmente" para que o NSGA-II seja melhor calibrado
 pontos_retirar_manual = ['2386701666', '2386701653', '353461444', '8256516317', '1344105186', '2386701633',
@@ -758,7 +758,9 @@ def processamento_rotas(geracoes, populacao, mutacao, crossover):
 
     # O tamanho da população deve ser sempre par
     # A quantidade mínima de clusters é dividida por 2 par dar um maior espaço de busca para o algoritmo
-    nsga = NSGA2(geracoes, populacao, mutacao, crossover, 30, int((quantidade_lixo_cidade / CAPACIDADE_CAMINHAO) / 2),
+    """nsga = NSGA2(geracoes, populacao, mutacao, crossover, 30, int((quantidade_lixo_cidade / CAPACIDADE_CAMINHAO) / 2),
+                 30)"""
+    nsga = NSGA2(geracoes, populacao, mutacao, crossover, 30, int(quantidade_lixo_cidade / CAPACIDADE_CAMINHAO),
                  30)
 
     return nsga.run()
@@ -910,15 +912,11 @@ def projeto_fatorial():
 
     configuration_and_iteration = get_configuration_for_execute()
 
-    numero_config = 1
-
     while configuration_and_iteration:
 
-        configuration = str(configuration_and_iteration[0])
+        print(f"Iteração {str(configuration_and_iteration[1])}: Configuração {str(configuration_and_iteration[0])}\n")
 
-        print(f"Iteração {numero_config}: Configuração {configuration}\n")
-
-        parameter = configurations[configuration]
+        parameter = configurations[str(configuration_and_iteration[0])]
         processamento_rotas(parameter[0], parameter[1], parameter[2], parameter[3])
 
         save_configuration_executed(configuration_and_iteration)

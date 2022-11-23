@@ -68,8 +68,8 @@ if __name__ == '__main__':
     print("")
 
     # Arquivo OSM com os dados inicias
-    nome_arquivo = "entrada/entrada_pequena.osm"
-    # nome_arquivo = "entrada/entrada_grande.osm"
+    # nome_arquivo = "entrada/entrada_pequena.osm"
+    nome_arquivo = "entrada/entrada_grande.osm"
 
     # cProfile.run('main()', filename='saida/profiling.cprof')
     main()

@@ -58,8 +58,7 @@ class NSGA2:
 
         self.runtime = 0
 
-        # TODO Como definir esse ponto de referência?
-        self.create_front_file("[2, 2, 2, 2]")
+        self.create_front_file("[1.1, 1.1, 1.1, 1.1]")
 
         # Depende da forma que será feita a mutação
         # self.genotype_mutation_probability = 0.5
@@ -644,28 +643,44 @@ class NSGA2:
             for line in f:
                 fronts.append(eval(line))
 
+        # TODO Cada front possui 5 listas com os resultados de cada métrica, uma lista por geração, não seria isso que
+        # eu teria que printar no gráfico? Seria uma mediana de cada uma das listas para imprimir no gráfico
         for front in fronts:
             hv = hypervolume(front)
             result.append(hv.compute(hv_ref))
 
+        # Gera o arquivo com os resultados
+        # Primeira coluna representa o valor do hypervolume, segunda o tempo de execução
         try:
+
             with open(output_file_name, "a") as f:
+
                 line = str(result[-1]) + "," + str(self.runtime) + "\n"
                 f.write(line)
         except IOError:
+
             with open(output_file_name, "w") as f:
+
                 line = "hv\ttime\n"
                 f.write(line)
                 line = str(result[-1]) + "," + str(self.runtime) + "\n"
                 f.write(line)
 
         file_path = os.path.realpath(__file__)
-        directory = file_path[:-5]
+        # directory = file_path[:-5]
+        directory = file_path[:-2]
 
+        # TODO Estudar essa função e alterar essa linha no x
         plt.plot(range(1, len(result) + 1), result, 'ro')
         plt.ylabel("hypervolume Score")
         plt.xlabel("Generations")
-        plt.savefig(directory + "hypervolume.png")
+        plt.savefig(directory + self.factorial_file_name + "_hypervolume.png")
+
+        # Limpa a figura para evitar que o marplotlib se "lembre" da figura
+        plt.clf()
+
+        # Fecha a instância do pyplot para que nenhum lixo de memória seja inserido na próxima imagem
+        plt.close()
 
     # Utils
     def _show_fronts(self, fronts):
