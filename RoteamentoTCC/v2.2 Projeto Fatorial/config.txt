@@ -1,0 +1,3 @@
+Mutação: um pouco mais complexa, o gene pode sofrer soma ou subtração
+Taxa de crossover fixa
+Crossover: Simples, escolhe um gene aleatório de um dos pais
