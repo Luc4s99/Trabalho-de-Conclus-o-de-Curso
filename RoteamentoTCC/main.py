@@ -52,6 +52,10 @@ def main():
 
         # Realiza os cálculos do projeto fatorial
         util.projeto_fatorial()
+
+        print("Calculando medianas dos arquivos...")
+
+        util.calcula_medianas()
     else:
 
         melhor_front = util.processamento_rotas(5, 10, 0.05, 0.85)

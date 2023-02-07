@@ -16,7 +16,7 @@ import RoteamentoTCC.util as util
 # Importando métodos úteis da classe população
 from RoteamentoTCC.nsga.population import Population
 # Importação do normalizador de dados
-from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import MinMaxScaler, StandardScaler, MaxAbsScaler
 # Biblioteca para medição de tempo
 import time
 # Biblioteca com comandos úteis do sistema operacional
@@ -54,11 +54,20 @@ class NSGA2:
 
         self.population_file_name = "population_evolution.txt"
 
-        self.factorial_file_name = f'{generations}g-{population_size}p-{mutation_rate}m-{crossover_rate}c'
+        # Identifica a configuração do arquivo
+        config_arquivo = ""
+
+        config_arquivo += "1" if generations == 90 else "2"
+        config_arquivo += "1" if population_size == 100 else "2"
+        config_arquivo += "1" if mutation_rate == 0.45 else "2"
+        config_arquivo += "1" if crossover_rate == 0.65 else "2"
+
+        self.factorial_file_name = f'{config_arquivo}_{generations}g-{population_size}p-{mutation_rate}m-{crossover_rate}c'
 
         self.runtime = 0
 
-        self.create_front_file("[1.1, 1.1, 1.1, 1.1]")
+        # self.create_front_file("[1.1, 1.1, 1.1, 1.1]")
+        self.create_front_file("[3, 3, 3]")
 
         # Depende da forma que será feita a mutação
         # self.genotype_mutation_probability = 0.5
@@ -139,6 +148,9 @@ class NSGA2:
             offspring_population = self.usual_crossover()
             self.evaluate(offspring_population)
 
+            # Armazena a melhor fronteira para ser calculado o hypervolume
+            self.add_population_to_file(best_front)
+
         self.runtime = time.time() - start_time
 
         self.calculate_hypervolume()
@@ -149,7 +161,7 @@ class NSGA2:
     def evaluate_individual(self, individual):
 
         # Indica a porcentagem de lixo recolhida
-        porcentagem_lixo_recolhido = 0
+        # porcentagem_lixo_recolhido = 0
 
         # Armazena a variação de altitude
         variacao_altitude = 0
@@ -160,11 +172,13 @@ class NSGA2:
         # Lista que representa o tempo gasto pelos caminhoes, a lista inicia com zero
         tempo_caminhoes = [0 for _ in range(individual.genome[0])]
 
-        # Realiza o agrupamento dos pontos de acordo com o parâmetro do indivíduo
+        pontos_clusterizados = util.cache_mapas_eulerizados[individual.genome[1]][0]
+
+        """# Realiza o agrupamento dos pontos de acordo com o parâmetro do indivíduo
         pontos_clusterizados = util.k_means(individual.genome[1])
 
         # Armazena a distribuição dos pontos em cluster do individuo
-        individual.pontos_clusterizados = pontos_clusterizados
+        individual.pontos_clusterizados = pontos_clusterizados"""
 
         # Indica qual caminhão será analisado
         vez = 0
@@ -176,21 +190,23 @@ class NSGA2:
         for id_cluster, cluster in pontos_clusterizados.items():
 
             distancia_cluster = 0
-            quantidade_lixo_cluster = 0
+            quantidade_lixo_caminhao = 0
 
             # Termina a montagem do indivíduo, selecionando os pontos de onde começarão os trajetos nos clusters
             ponto_inicio = random.choice(cluster)
 
             individual.genome[2][id_cluster] = ponto_inicio
 
-            # Primeiramente é montado um subgrafo com os pontos do cluster
+            grafo_cluster = util.cache_mapas_eulerizados[individual.genome[1]][1][id_cluster]
+
+            """# Primeiramente é montado um subgrafo com os pontos do cluster
             grafo_cluster = util.grafo_cidade_simplificado.subgraph(ponto.id for ponto in cluster).copy()
 
             # Verifica se o subgrafo é euleriano
             if not nx.is_eulerian(grafo_cluster):
 
                 # Transforma em um grafo euleriano
-                grafo_cluster = util.converte_grafo_euleriano(grafo_cluster)
+                grafo_cluster = util.converte_grafo_euleriano(grafo_cluster)"""
 
             # Realiza a rota euleriana pelo grafo
             # Começa pelo ponto selecionado para início da rota
@@ -199,7 +215,8 @@ class NSGA2:
             # Verifica se foi gerado algo na rota
             if len(rota) == 0:
 
-                print("TAMANHO DA ROTA É ZERO!")
+                # print("TAMANHO DA ROTA É ZERO!")
+                pass
 
             else:
 
@@ -208,7 +225,7 @@ class NSGA2:
 
                 # Calcula a volta do caminhao ao depósito
                 distancia_cluster += nx.dijkstra_path_length(util.grafo_cidade_simplificado,
-                                                             rota[len(rota) - 1][0], util.DEPOSITO)
+                                                             rota[-1][1], util.DEPOSITO)
 
             # Percorre a rota, calcula o tempo e verifica o lixo coletado
             for pnt_coleta in rota:
@@ -219,25 +236,52 @@ class NSGA2:
                 # Verifica se esses pontos já não foram visitados por esse indivíduo e coleta
                 if pnt_coleta[0] not in recolhido:
 
-                    quantidade_lixo_cluster += util.pontos_otimizados[pnt_coleta[0]].quantidade_lixo
-                    recolhido.append(pnt_coleta[0])
+                    # Verifica antes se a capacidade do veículo vai ser ultrapassada ao recolher aquele ponto
+                    if quantidade_lixo_caminhao + util.pontos_otimizados[pnt_coleta[0]].quantidade_lixo < util.CAPACIDADE_CAMINHAO:
+
+                        quantidade_lixo_caminhao += util.pontos_otimizados[pnt_coleta[0]].quantidade_lixo
+                        recolhido.append(pnt_coleta[0])
+                    else:
+
+                        # Se o caminhão encher, deve voltar ao depósito, depositar o lixo e voltar
+                        # Multiplica-se por 2 pois deve ir e retornar
+                        distancia_cluster += nx.dijkstra_path_length(util.grafo_cidade_simplificado, pnt_coleta[0],
+                                                                     util.DEPOSITO) * 2
+
+                        quantidade_lixo_caminhao = 0
+
+                        # Recolhe finalmente o lixo
+                        quantidade_lixo_caminhao += util.pontos_otimizados[pnt_coleta[0]].quantidade_lixo
+                        recolhido.append(pnt_coleta[0])
+                        # break
 
                 if pnt_coleta[1] not in recolhido:
-                    quantidade_lixo_cluster += util.pontos_otimizados[pnt_coleta[1]].quantidade_lixo
-                    recolhido.append(pnt_coleta[1])
+
+                    # Verifica antes se a capacidade do veículo vai ser ultrapassada ao recolher aquele ponto
+                    if quantidade_lixo_caminhao + util.pontos_otimizados[pnt_coleta[1]].quantidade_lixo < util.CAPACIDADE_CAMINHAO:
+
+                        quantidade_lixo_caminhao += util.pontos_otimizados[pnt_coleta[1]].quantidade_lixo
+                        recolhido.append(pnt_coleta[1])
+                    else:
+
+                        # Se o caminhão encher, deve voltar ao depósito, depositar o lixo e voltar
+                        # Multiplica-se por 2 pois deve ir e retornar
+                        distancia_cluster += nx.dijkstra_path_length(util.grafo_cidade_simplificado, pnt_coleta[1],
+                                                                     util.DEPOSITO) * 2
+
+                        quantidade_lixo_caminhao = 0
+
+                        # Recolhe finalmente o lixo
+                        quantidade_lixo_caminhao += util.pontos_otimizados[pnt_coleta[1]].quantidade_lixo
+                        recolhido.append(pnt_coleta[1])
+                        # break
 
                 # Incrementa a variação de altitude
                 variacao_altitude += (util.pontos_otimizados[pnt_coleta[0]].altitude - util.pontos_otimizados[pnt_coleta[1]].altitude) / grafo_cluster[pnt_coleta[0]][pnt_coleta[1]][0]["weight"]
 
-                # Verifica se a carga do veículo foi ultrapassada
-                if quantidade_lixo_cluster > util.CAPACIDADE_CAMINHAO:
-
-                    break
-
             # Incrementa a quantidade de lixo total com a quantidade do cluster
-            porcentagem_lixo_recolhido += quantidade_lixo_cluster
+            # porcentagem_lixo_recolhido += quantidade_lixo_cluster
 
-            # Converte a distância para tempo(levando em conta que o caminhão coleta a 5km/h) em minutos
             # E incrementa no tempo do caminhão correspondente
             if vez == len(tempo_caminhoes):
 
@@ -248,15 +292,23 @@ class NSGA2:
             tempo_caminhoes[vez] += distancia_cluster
             vez += 1
 
-        # Retorna a soma de tempo dos caminhões: Métrica de minimização
+        """"# Retorna a soma de tempo dos caminhões: Métrica de minimização
         # A porcentagem de lixo não recolhida: Métrica de minimização
         # A variação de altitude: Métrica de minimização
         # A quantidade de caminhões = |(lixo total / capacidade caminhao) - quantidade gerada|: Minimização
         return [sum(tempo_caminhoes), round(100 - (porcentagem_lixo_recolhido * 100) / util.quantidade_lixo_cidade),
-                variacao_altitude, abs((util.quantidade_lixo_cidade / util.CAPACIDADE_CAMINHAO) - individual.genome[0])]
+                variacao_altitude, abs((util.quantidade_lixo_cidade / util.CAPACIDADE_CAMINHAO) - individual.genome[0])]"""
+
+        # Retorna a soma de tempo dos caminhões: Métrica de minimização
+        # O valor absoluto da variação de altitude: Métrica de minimização
+        # A quantidade de caminhões: Minimização
+        return [sum(tempo_caminhoes), abs(variacao_altitude), individual.genome[0]]
 
     # Função que avalia os indivíduos gerados na população
     def evaluate(self, population):
+
+        # Para a normalização os dados precisam estar no formato de uma matriz
+        matrix_normalizar = []
 
         # Iterando sobre todos os indivíduos gerados na população
         for individual in population.individuals:
@@ -267,25 +319,30 @@ class NSGA2:
                 # Avalia e retorna as soluções não normalizadas
                 individual.non_normalized_solutions = self.evaluate_individual(individual)
 
+            """matrix_normalizar = [[individual.non_normalized_solutions[0]], [individual.non_normalized_solutions[1]],
+                                             [individual.non_normalized_solutions[2]], [individual.non_normalized_solutions[3]]]"""
+            matrix_normalizar.append([individual.non_normalized_solutions[0],
+                                      individual.non_normalized_solutions[1],
+                                      individual.non_normalized_solutions[2]])
+
         # Instancia o escalar para fazer a normalização MIN/MAX dos dados
-        escalar = MinMaxScaler()
+        # escalar = MinMaxScaler()
+        # escalar = StandardScaler()
+        escalar = MaxAbsScaler()
+
+        escalar.fit(matrix_normalizar)
 
         # Percorre os indivíduos
         for individual in population.individuals:
 
-            # Para a normalização os dados precisam estar no formato de uma matriz
-            matrix_normalizar = [[individual.non_normalized_solutions[0]], [individual.non_normalized_solutions[1]],
-                                 [individual.non_normalized_solutions[2]], [individual.non_normalized_solutions[3]]]
-
             # Realiza a normalização dos dados do indivíduo em questão
-            escalar.fit(matrix_normalizar)
-            normalizado = escalar.transform(matrix_normalizar)
+            # normalizado = escalar.transform(matrix_normalizar)
+            normalizado = escalar.transform([individual.non_normalized_solutions])
 
             # Insere o resultado nas soluções normalizadas do indivíduo
-            individual.solutions = [normalizado[0][0], normalizado[1][0], normalizado[2][0], normalizado[3][0]]
-
-        # Usado para calibrar, depois descomentar e plotar os gráficos do hypervolume
-        self.add_population_to_file(population)
+            # individual.solutions = [normalizado[0][0], normalizado[1][0], normalizado[2][0], normalizado[3][0]]
+            # individual.solutions = [normalizado[0][0], normalizado[1][0], normalizado[2][0]]
+            individual.solutions = [normalizado[0][0], normalizado[0][1], normalizado[0][2]]
 
         self.geracao += 1
 
@@ -322,7 +379,7 @@ class NSGA2:
                     # Verifica se domina ou é dominado pelos outros indivíduos
                     if individuo_atual.dominates(outro_individuo):
 
-                        # Se ele domina, o outro indivíduo é inserido na lista que indivíduos dominados por ele
+                        # Se ele domina, o outro indivíduo é inserido na lista de indivíduos dominados por ele
                         individuo_atual.dominated_by.append(outro_individuo)
                     elif outro_individuo.dominates(individuo_atual):
 
@@ -410,9 +467,8 @@ class NSGA2:
                         population.individuals[i].crowding_distance += (
                                     (right_neighbour_value - left_neighbour_value) / (max_value - min_value))
 
+    # Retorna o melhor indivíduo de acordo com o operador de crowding
     def crowded_comparison(self, individual_A, individual_B):
-        """Return the best individual according to the crowded comparison operator
-        in NSGA-II paper"""
 
         if ((individual_A.rank < individual_B.rank)
                 or ((individual_A == individual_B)
@@ -420,8 +476,8 @@ class NSGA2:
             return individual_A
         return individual_B
 
+    # Ordena a população de acordo com o operador de crowding, utilizando o bubble sort
     def sort_by_crowded_comparison(self, population):
-        """Sort "population" with crowded comparison operator. Bubble sort"""
 
         for i in range(len(population.individuals) - 2):
 
@@ -466,6 +522,15 @@ class NSGA2:
             pontuacao_segundo_candidato += 1
 
         # Depois verifica qual possui o menor percentual de lixo não recolhido
+        """if primeiro_candidato.solutions[1] < segundo_candidato.solutions[1]:
+
+            pontuacao_primeiro_candidato += 1
+        else:
+
+            pontuacao_segundo_candidato += 1"""
+
+        # Verifica qual deles possui a menor variação de altitude
+        # if primeiro_candidato.solutions[2] < segundo_candidato.solutions[2]:
         if primeiro_candidato.solutions[1] < segundo_candidato.solutions[1]:
 
             pontuacao_primeiro_candidato += 1
@@ -473,16 +538,9 @@ class NSGA2:
 
             pontuacao_segundo_candidato += 1
 
-        # Verifica qual deles possui a menor variação de altitude
-        if primeiro_candidato.solutions[2] < segundo_candidato.solutions[2]:
-
-            pontuacao_primeiro_candidato += 1
-        else:
-
-            pontuacao_segundo_candidato += 1
-
         # E por fim verifica qual possui a quantidade de caminhões mais otimizada
-        if primeiro_candidato.solutions[3] < segundo_candidato.solutions[3]:
+        # if primeiro_candidato.solutions[3] < segundo_candidato.solutions[3]:
+        if primeiro_candidato.solutions[2] < segundo_candidato.solutions[2]:
 
             pontuacao_primeiro_candidato += 1
         else:
@@ -516,8 +574,8 @@ class NSGA2:
             child2_genome.append(pai1.genome[2])
 
             # Após a geração das proles, é feita a mutação
-            child1_genome = self.mutation(child1_genome, pai2.pontos_clusterizados)
-            child2_genome = self.mutation(child2_genome, pai1.pontos_clusterizados)
+            child1_genome = self.mutation(child1_genome)
+            child2_genome = self.mutation(child2_genome)
         else:
 
             child2_genome.append(pai1.genome[0])
@@ -528,8 +586,8 @@ class NSGA2:
             child1_genome.append(pai1.genome[1])
             child1_genome.append(pai1.genome[2])
 
-            child1_genome = self.mutation(child1_genome, pai1.pontos_clusterizados)
-            child2_genome = self.mutation(child2_genome, pai2.pontos_clusterizados)
+            child1_genome = self.mutation(child1_genome)
+            child2_genome = self.mutation(child2_genome)
 
         # Retorna os dois indivíduos resultantes do cruzamento
         return child1_genome, child2_genome
@@ -580,7 +638,7 @@ class NSGA2:
         return offspring_population
 
     # Método que realiza mutação no genoma do indivíduo
-    def mutation(self, genome, pontos_cluster):
+    def mutation(self, genome):
 
         # Verifica se a mutação irá ocorrer
         if random.uniform(0, 1) > self.mutation_rate:
@@ -589,21 +647,65 @@ class NSGA2:
             return genome
 
         # Verifica se será o primeiro ou o segundo gene a sofrer a mutação
-        # Atualmente é utilizada uma mutação bem simples, onde apenas se soma +1 no gene selecionado
         if random.random() < 0.5:
 
-            # TODO Colocar também opção para subtrair os valores?
-            genome[0] += 1
-        else:
-
-            genome[1] += 1
-
-        # Percorre os pontos de início dos cluster para aplicar mutação
-        for i, ponto_inicio in enumerate(genome[2]):
-
+            # Sorteia se será somado ou subtraído do gene
             if random.random() < 0.5:
 
-                genome[2][i] = random.choice(pontos_cluster[i])
+                genome[0] += random.randint(1, 10)
+            else:
+
+                genome[0] -= random.randint(1, 10)
+
+            # Garante que o intervalo não ficará zerado, negativo ou maior do que deve
+            if genome[0] < 1:
+
+                genome[0] = 1
+
+            elif genome[0] > self.max_caminhoes:
+
+                genome[0] = self.max_caminhoes
+
+            # Busca pela clusterização armazenada em cache
+            pnts_clusterizados = util.cache_mapas_eulerizados[genome[1]][0]
+
+            # Percorre os pontos de início dos cluster para aplicar mutação
+            for i, ponto_inicio in enumerate(genome[2]):
+
+                if random.random() < 0.5:
+
+                    genome[2][i] = random.choice(pnts_clusterizados[i])
+
+        else:
+
+            # Sorteia se será somado ou subtraído do gene
+            if random.random() < 0.5:
+
+                genome[1] += random.randint(1, 10)
+            else:
+
+                genome[1] -= random.randint(1, 10)
+
+            # Garante que o intervalo não ficará zerado, negativo ou maior do que deve
+            if genome[1] < self.min_clusters:
+
+                genome[1] = self.min_clusters
+
+            elif genome[1] > self.max_clusters:
+
+                genome[1] = self.max_clusters
+
+            # Já que houve alteração, devem ser gerados outros pontos de início
+            genome[2] = []
+            genome[2] = [-1 for _ in range(genome[1])]
+
+            # Busca pela clusterização armazenada em cache
+            pnts_clusterizados = util.cache_mapas_eulerizados[genome[1]][0]
+
+            # Realiza o sorteio dos pontos novamente
+            for i in range(len(genome[2])):
+
+                genome[2][i] = random.choice(pnts_clusterizados[i])
 
         return genome
 
@@ -621,7 +723,7 @@ class NSGA2:
 
             objectives = "["
 
-            for individual in self.population.individuals:
+            for individual in front.individuals:
 
                 objectives += str(individual.solutions) + ", "
 
@@ -633,7 +735,7 @@ class NSGA2:
     def calculate_hypervolume(self):
 
         population_file_name = "population_evolution.txt"
-        output_file_name = "output_" + self.factorial_file_name + ".txt"
+        output_file_name = "saida/Resultados/output_" + self.factorial_file_name + ".txt"
 
         fronts = []
         result = []
@@ -643,8 +745,7 @@ class NSGA2:
             for line in f:
                 fronts.append(eval(line))
 
-        # TODO Cada front possui 5 listas com os resultados de cada métrica, uma lista por geração, não seria isso que
-        # eu teria que printar no gráfico? Seria uma mediana de cada uma das listas para imprimir no gráfico
+        # Calcula o hypervolume dos fronts
         for front in fronts:
             hv = hypervolume(front)
             result.append(hv.compute(hv_ref))
@@ -670,13 +771,12 @@ class NSGA2:
         # directory = file_path[:-5]
         directory = file_path[:-2]
 
-        # TODO Estudar essa função e alterar essa linha no x
         plt.plot(range(1, len(result) + 1), result, 'ro')
         plt.ylabel("hypervolume Score")
         plt.xlabel("Generations")
         plt.savefig(directory + self.factorial_file_name + "_hypervolume.png")
 
-        # Limpa a figura para evitar que o marplotlib se "lembre" da figura
+        # Limpa a figura para evitar que o matplotlib se "lembre" da figura
         plt.clf()
 
         # Fecha a instância do pyplot para que nenhum lixo de memória seja inserido na próxima imagem

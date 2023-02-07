@@ -31,9 +31,8 @@ class Individual:
         # List of individuals that are dominated by this individual
         self.dominated_by = list()
 
-        # TODO Verificar se isso não vai pesar na execução
         # Lista com os pontos clusterizados do indivíduo
-        self.pontos_clusterizados = {}
+        # self.pontos_clusterizados = {}
 
         self.rank = None
 

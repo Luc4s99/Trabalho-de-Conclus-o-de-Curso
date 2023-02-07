@@ -10,6 +10,7 @@ Link do GitHub: https://github.com/MateusSoares/Wireless-Access-Point-Optimizati
 
 # Arquivo com métodos úteis para a aplicação
 # Biblioteca para leitura do arquivo OSM
+import os
 import random
 import xml.etree.cElementTree as ET
 # Biblioteca para plotagem de dados no google maps
@@ -35,6 +36,14 @@ from RoteamentoTCC.nsga.nsga2 import NSGA2
 # Bibliotecas para criação de arquivos temporários
 import tempfile
 import shutil
+# Funçaõ de arredondamento para cima
+from math import ceil
+
+# Número máximo de clusters
+MAX_CLUSTERS = 30
+
+# Número máximo de caminhões
+MAX_CAMINHOES = 30
 
 # Parâmetros para a plotagem de imagens
 plt.rcParams['figure.figsize'] = (16, 9)
@@ -69,6 +78,10 @@ pontos_retirar_manual = ['2386701666', '2386701653', '353461444', '8256516317', 
 # Quantidade total de lixo que foi gerada na cidade
 quantidade_lixo_cidade = 0
 
+# Dicionário que armazena um 'cache' dos mapas que podem ser gerados pelo k-means
+# Utilizado para poupar tempo ao rodar o algoritmo
+cache_mapas_eulerizados = {}
+
 
 def __init__():
     pass
@@ -76,7 +89,6 @@ def __init__():
 
 # Realiza a leitura do arquivo de entrada
 def le_arquivo(arquivo_entrada: str):
-
     # Criando uma instância para leitura do XML que foi passado como parâmetro
     arvore = ET.parse(arquivo_entrada)
     # Obtém a tag raiz do arquivo
@@ -251,7 +263,6 @@ def le_arquivo(arquivo_entrada: str):
 
 
 def otimiza_grafo():
-
     # Percorre todos os nós que já foram obtidos
     for id_ponto, ponto in pontos.items():
 
@@ -295,7 +306,6 @@ def otimiza_grafo():
 
 
 def adiciona_alturas():
-
     # Abre o arquivo que contém as altitudes dos pontos
     arq_altitudes = open("entrada/alturas.osm", "r")
 
@@ -319,7 +329,6 @@ def adiciona_alturas():
 
 # Função que faz a interligação dos pontos obtidos no mapa, forma as ruas e as plota
 def mapeia_ruas(arquivo):
-
     lat = []
     lon = []
 
@@ -416,7 +425,6 @@ def mapeia_ruas(arquivo):
 # Essa função atualiza os vizinhos dos pontos após a otimização do grafo
 # Pois durante o processo de otimização, alguns vizinhos podem ter sido removidos
 def atualiza_vizinhos():
-
     # Primeiro limpa todos os vizinhos dos pontos otimizados
     for ponto in pontos_otimizados.values():
         ponto.pontos_vizinhos.clear()
@@ -429,7 +437,6 @@ def atualiza_vizinhos():
 
 # Função que monta o grafo que representa o mapa e o plota
 def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
-
     coordenadas_pontos = {}
 
     # Percorre todas as ruas do grafo
@@ -492,7 +499,6 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
 # A distância real neste caso, é a distância considerando todos os pontos da rua, até os pontos que foram retirados pela
 # otimização
 def calcula_distancia_real(rua_id, ponto_inicial, ponto_final):
-
     # Obtem a rua do dicionário de ruas
     rua = ruas[rua_id]
 
@@ -530,7 +536,6 @@ def calcula_distancia_real(rua_id, ponto_inicial, ponto_final):
 
 # Função que monta o grafo que representa o mapa e o plota
 def monta_grafo(nome_arquivo):
-
     # Grafo que será utilizado para representar o mapa da cidade
     grafo_cidade = nx.Graph()
 
@@ -570,7 +575,6 @@ def monta_grafo(nome_arquivo):
 
 
 def desenha_grafo(grafo):
-
     coordenadas_pontos = {}
 
     for node in nx.nodes(grafo):
@@ -592,7 +596,6 @@ def desenha_grafo(grafo):
 
 # Função que calcula a demanda aproximada de lixo de cada rua e divide entre seus pontos
 def calcula_demandas(nome_arquivo):
-
     # Identifica a variável global que armazena a quantidade de lixo total gerada na cidade
     global quantidade_lixo_cidade
 
@@ -698,7 +701,6 @@ def k_means(n_cluster):
     # Cria o array pela biblioteca do numpy
     coordenadas_pontos = np.array(matriz)
 
-    # TODO Testar diferentes quantidades de iterações. Original: 300
     # Realiza uma instância do algoritmo do kmeans
     kmeans = KMeans(n_cluster, init='k-means++', n_init=10, max_iter=100)
 
@@ -757,11 +759,10 @@ def k_means(n_cluster):
 def processamento_rotas(geracoes, populacao, mutacao, crossover):
 
     # O tamanho da população deve ser sempre par
-    # A quantidade mínima de clusters é dividida por 2 par dar um maior espaço de busca para o algoritmo
-    """nsga = NSGA2(geracoes, populacao, mutacao, crossover, 30, int((quantidade_lixo_cidade / CAPACIDADE_CAMINHAO) / 2),
-                 30)"""
-    nsga = NSGA2(geracoes, populacao, mutacao, crossover, 30, int(quantidade_lixo_cidade / CAPACIDADE_CAMINHAO),
-                 30)
+    """# A quantidade mínima de clusters é dividida por 2 par dar um maior espaço de busca para o algoritmo
+    nsga = NSGA2(geracoes, populacao, mutacao, crossover, MAX_CAMINHOES,
+                 int((quantidade_lixo_cidade / CAPACIDADE_CAMINHAO) / 2), MAX_CLUSTERS)"""
+    nsga = NSGA2(geracoes, populacao, mutacao, crossover, MAX_CAMINHOES, 2, MAX_CLUSTERS)
 
     return nsga.run()
 
@@ -782,10 +783,8 @@ def retorna_maior_label():
 # Converte o grafo otimizado para um grafo euleriano
 # Para que um grafo seja euleriano, todos os vértices dele devem possuir grau par
 def converte_grafo_euleriano(grafo):
-
     # Conecta o grafo para que seja possível realizar o circuito
     if not nx.is_connected(grafo):
-
         conecta_grafo(grafo)
 
     # Utiliza a função pronta do networkx que converte o grafo para um grafo euleriano
@@ -794,7 +793,6 @@ def converte_grafo_euleriano(grafo):
 
 # Se o subgrafo do cluster for desconexo, ele deve ter seus pontos conectados
 def conecta_grafo(grafo):
-
     # Variável que armazena os pontos da primeira componente conexa, que é a maior
     primeiro_componente = None
 
@@ -816,7 +814,6 @@ def conecta_grafo(grafo):
                 # Verifica se o ponto está na primeira componente e se não é o mesmo ponto
                 # Assim é gerantido que o ponto será ligado ao mais próximo presente na primeira componente conexa
                 if (node_prox in primeiro_componente) and (comp[0] != node_prox):
-
                     distancia_pontos = nx.single_source_dijkstra(grafo_cidade_simplificado, comp[0], node_prox)
                     grafo.add_edge(comp[0], node_prox, weight=distancia_pontos[0])
 
@@ -828,20 +825,17 @@ def conecta_grafo(grafo):
 
 
 def get_configuration_for_execute():
-
     with open("configurations.log", "r") as input_file:
 
         for line in input_file:
 
             if not line.startswith("#"):
-
                 return eval(line)
 
     return False
 
 
 def save_configuration_executed(config):
-
     line_to_modify = f'{config}\n'
 
     with open("configurations.log", "r") as input_file, tempfile.NamedTemporaryFile("w", delete=False) as output_file:
@@ -860,10 +854,15 @@ def save_configuration_executed(config):
 
 def projeto_fatorial():
 
-    a1, a2 = 5, 10  # Gerações
-    b1, b2 = 10, 20  # Tamanho da população
-    c1, c2 = 0.05, 0.1  # Taxa de mutação
-    d1, d2 = 0.85, 0.95  # Taxa de crossover
+    global cache_mapas_eulerizados
+
+    # Monta o 'cache' dos mapas eulerizados
+    monta_cache_mapas()
+
+    a1, a2 = 90, 110  # Gerações
+    b1, b2 = 100, 150  # Tamanho da população
+    c1, c2 = 0.45, 0.5  # Taxa de mutação
+    d1, d2 = 0.65, 0.7  # Taxa de crossover
 
     configurations = {
         "1": [a2, b2, c2, d2],
@@ -881,7 +880,7 @@ def projeto_fatorial():
         "13": [a1, b1, c2, d2],
         "14": [a1, b1, c2, d1],
         "15": [a1, b1, c1, d2],
-        "16": [a1, b1, c1, d1],
+        "16": [a1, b1, c1, d1]
     }
 
     # Lista com as linhas do arquivo
@@ -895,14 +894,12 @@ def projeto_fatorial():
 
             # Número de vezes que cada configuração será testada
             for iteracao in range(3):
-
                 # Adiciona a linha na lista
                 linhas.append(f"[{config}, {iteracao}]\n")
 
         # Após todas as linhas geradas, percorre a lista que as armazena
         while linhas:
-
-            # Escrevendo no arquivo um linha aleatoria, para que uma configuração não seja prejudicada tendo testes
+            # Escrevendo no arquivo uma linha aleatoria, para que uma configuração não seja prejudicada tendo testes
             # executados um após o outro
             linha = random.choice(linhas)
             arq_configuracao.write(linha)
@@ -913,7 +910,6 @@ def projeto_fatorial():
     configuration_and_iteration = get_configuration_for_execute()
 
     while configuration_and_iteration:
-
         print(f"Iteração {str(configuration_and_iteration[1])}: Configuração {str(configuration_and_iteration[0])}\n")
 
         parameter = configurations[str(configuration_and_iteration[0])]
@@ -921,3 +917,91 @@ def projeto_fatorial():
 
         save_configuration_executed(configuration_and_iteration)
         configuration_and_iteration = get_configuration_for_execute()
+
+
+# Calcula as medianas dos arquivos de saída gerados
+def calcula_medianas():
+    # Itera sobre os arquivos de saida
+    for filename in os.listdir("saida/Resultados"):
+
+        # Lista que armazena os valores de hypervolume
+        hypervolumes = []
+
+        # Lista que aramzena os valores de tempo de execução
+        tempos = []
+
+        # Abre o arquivo para ser lido e atualizado
+        # with open(filename, "a+") as arquivo:
+        with open("saida/Resultados/" + filename, "r") as input_file, tempfile.NamedTemporaryFile("w",
+                                                                                                  delete=False) as output_file:
+
+            # Itera sobre as linhas do arquivo
+            for linha in input_file:
+                # O que tiver antes da vírgula é o valor de hypervolume
+                hypervolumes.append(float(linha.split(',')[0]))
+
+                # E o que tiver depois é o valor do tempo de execução
+                tempos.append(float(linha.split(',')[1]))
+
+                # Escreve a linha novamente no arquivo
+                output_file.write(linha)
+
+            # Ordena as listas
+            hypervolumes.sort()
+            tempos.sort()
+
+            # Cálculo da mediana
+            # Identifica se a lista é de tamanho ímpar ou par
+            if len(hypervolumes) % 2 == 0 and len(tempos) % 2 == 0:
+
+                # Se for par calcula a média entre os dois elementos centrais
+                media_hypervolume = (hypervolumes[ceil(len(hypervolumes) / 2) - 1] +
+                                     hypervolumes[ceil(len(hypervolumes) / 2)]) / 2
+                media_tempos = (tempos[ceil(len(tempos) / 2) - 1] + tempos[ceil(len(tempos) / 2)]) / 2
+
+                output_file.write(f"\n\n{media_hypervolume},{media_tempos}")
+            else:
+
+                # Se for ímpar calcula o meio da lista
+                output_file.write(f"\n\n{hypervolumes[ceil(len(hypervolumes) / 2) - 1]},"
+                                  f"{tempos[ceil(len(hypervolumes) / 2) - 1]}")
+
+        shutil.move(output_file.name, "saida/Resultados/" + filename)
+
+
+# Monta o 'cache'
+def monta_cache_mapas():
+
+    global cache_mapas_eulerizados
+
+    print("Gerando 'cache' dos mapas...")
+
+    # Vai do mínimo ao máximo de clusters
+    # O mínimo foi definido como 2 para abranger o mínimo possível em qualquer execução
+    for n_cluster in range(2, MAX_CLUSTERS + 1):
+
+        # Realiza a clusterização com o número de clusters atual
+        pontos_clusterizados = k_means(n_cluster)
+
+        # Inicia a lista de subgrafos eulerizados
+        subgrafos_eularizados = {}
+
+        # Percorre os agrupamentos realizados pelo k-means
+        for id_cluster, cluster in pontos_clusterizados.items():
+
+            # Monta um subgrafo com o agrupamento
+            grafo_cluster = grafo_cidade_simplificado.subgraph(ponto.id for ponto in cluster).copy()
+
+            # Verifica se o subgrafo é euleriano
+            if not nx.is_eulerian(grafo_cluster):
+
+                # Transforma em um grafo euleriano
+                grafo_cluster = converte_grafo_euleriano(grafo_cluster)
+
+            # Adiciona nos subgrafos eulerizados
+            subgrafos_eularizados[id_cluster] = grafo_cluster
+
+        print(f"Cache do mapeamento para {n_cluster} clusters gerado")
+
+        # Insere na lista global para ser acessada posteriormente
+        cache_mapas_eulerizados[n_cluster] = [pontos_clusterizados, subgrafos_eularizados]
