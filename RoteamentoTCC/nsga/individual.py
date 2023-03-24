@@ -38,6 +38,12 @@ class Individual:
 
         self.crowding_distance = None
 
+        # Quantidade de lixo recolhida pelo indivíduo
+        self.quantidade_lixo = 0
+
+        # Dicionário que armazena a rota realizada por cada caminhão
+        self.rotas = {}
+
     # Verifica se um indivíduo domina outro
     def dominates(self, individual):
 

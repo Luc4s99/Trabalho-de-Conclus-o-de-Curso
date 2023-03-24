@@ -12,7 +12,7 @@ import os
 def main():
 
     # Variável que define se o projeto fatorial será executado
-    projeto_fatorial = True
+    projeto_fatorial = False
 
     # Leitura de arquivo e geração de arquivo sem tags desnecessárias
     # Invoca função para leitura do arquivo OSM
@@ -58,7 +58,11 @@ def main():
         util.calcula_medianas()
     else:
 
-        melhor_front = util.processamento_rotas(5, 10, 0.05, 0.85)
+        # Monta o 'cache' dos mapas eulerizados
+        util.monta_cache_mapas()
+
+        melhor_front = util.processamento_rotas(150, 100, 0.4, 0.6)
+        # melhor_front = util.processamento_rotas(30, 10, 0.4, 0.6)
 
         for ind in melhor_front.individuals:
             print(ind.genome)
@@ -75,8 +79,4 @@ if __name__ == '__main__':
     # nome_arquivo = "entrada/entrada_pequena.osm"
     nome_arquivo = "entrada/entrada_grande.osm"
 
-    # cProfile.run('main()', filename='saida/profiling.cprof')
     main()
-
-    # agora = datetime.now()
-    # print("Fim: ", agora.strftime("%H:%M:%S"))

@@ -1,0 +1,5 @@
+*** RESULTADOS OBTIDOS DA COLETA ***
+
+Quantidade de lixo recolhido(kg): 69374.27050026994 (100%)
+Número de caminhões utilizados para a realização da coleta: 1
+Número de agrupamentos realizados pelo mapa: 2

@@ -58,6 +58,9 @@ pontos_otimizados = {}
 # Armazena em um dicionario as ruas que foram mapeadas na leitura do arquivo
 ruas = {}
 
+# Grafo que representa o mapa completo da cidade
+grafo_cidade = nx.Graph()
+
 # Grafo que será utilizado para representar o mapa da cidade já simplificado
 grafo_cidade_simplificado = nx.MultiGraph()
 
@@ -335,10 +338,11 @@ def mapeia_ruas(arquivo):
     tuplas_latlon = []
 
     # Obtem os pontos para serem plotados
-    for x in pontos:
-        tuplas_latlon.append((pontos[x].latitude, pontos[x].longitude))
-        lat.append(pontos[x].latitude)
-        lon.append(pontos[x].longitude)
+    for id_pnt in pontos:
+
+        tuplas_latlon.append((pontos[id_pnt].latitude, pontos[id_pnt].longitude))
+        lat.append(pontos[id_pnt].latitude)
+        lon.append(pontos[id_pnt].longitude)
 
     # Adiciona o local inicial a plotagem
     mapa_plot = gmplot.GoogleMapPlotter(lat[0], lon[0], 13)
@@ -469,7 +473,7 @@ def monta_grafo_otimizado(pontos_grafo, nome_arquivo_saida):
 
                             # Insere a aresta no grafo
                             grafo_cidade_simplificado.add_edge(ponto_rua.id, ponto_rua_ligar.id,
-                                                               weight=distancia_pontos)
+                                                               weight=distancia_pontos, rua=rua)
 
                             # Para o for, pois a ligação desse ponto já foi encontrada
                             break
@@ -536,8 +540,6 @@ def calcula_distancia_real(rua_id, ponto_inicial, ponto_final):
 
 # Função que monta o grafo que representa o mapa e o plota
 def monta_grafo(nome_arquivo):
-    # Grafo que será utilizado para representar o mapa da cidade
-    grafo_cidade = nx.Graph()
 
     coordenadas_pontos = {}
 
@@ -759,9 +761,6 @@ def k_means(n_cluster):
 def processamento_rotas(geracoes, populacao, mutacao, crossover):
 
     # O tamanho da população deve ser sempre par
-    """# A quantidade mínima de clusters é dividida por 2 par dar um maior espaço de busca para o algoritmo
-    nsga = NSGA2(geracoes, populacao, mutacao, crossover, MAX_CAMINHOES,
-                 int((quantidade_lixo_cidade / CAPACIDADE_CAMINHAO) / 2), MAX_CLUSTERS)"""
     nsga = NSGA2(geracoes, populacao, mutacao, crossover, MAX_CAMINHOES, 2, MAX_CLUSTERS)
 
     return nsga.run()
@@ -858,13 +857,21 @@ def projeto_fatorial():
 
     # Monta o 'cache' dos mapas eulerizados
     monta_cache_mapas()
+    # Fixados
+    # a1, a2 = 300, 400  # Gerações
+    ger = 500
 
-    a1, a2 = 90, 110  # Gerações
-    b1, b2 = 100, 150  # Tamanho da população
-    c1, c2 = 0.45, 0.5  # Taxa de mutação
-    d1, d2 = 0.65, 0.7  # Taxa de crossover
+    # b1, b2 = 100, 150  # Tamanho da população
+    pop = 100
 
-    configurations = {
+    # c1, c2 = 0.45, 0.5  # Taxa de mutação
+    mut = 0.4
+
+    # d1, d2 = 0.65, 0.7  # Taxa de crossover
+    cro = 0.6
+
+    configurations = {"1": [ger, pop, mut, cro]}
+    """configurations = {
         "1": [a2, b2, c2, d2],
         "2": [a2, b2, c2, d1],
         "3": [a2, b2, c1, d2],
@@ -881,7 +888,7 @@ def projeto_fatorial():
         "14": [a1, b1, c2, d1],
         "15": [a1, b1, c1, d2],
         "16": [a1, b1, c1, d1]
-    }
+    }"""
 
     # Lista com as linhas do arquivo
     linhas = []
@@ -909,7 +916,9 @@ def projeto_fatorial():
 
     configuration_and_iteration = get_configuration_for_execute()
 
+    # Executa as configurações do arquivo gerado acima
     while configuration_and_iteration:
+
         print(f"Iteração {str(configuration_and_iteration[1])}: Configuração {str(configuration_and_iteration[0])}\n")
 
         parameter = configurations[str(configuration_and_iteration[0])]
