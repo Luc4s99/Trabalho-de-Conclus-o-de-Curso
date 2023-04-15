@@ -41,3 +41,21 @@ class Rua:
 
             for ponto in self.pontos:
                 print(ponto.label)
+
+    # Verifica se a rua possui os pontos passados por parâmetro
+    def possui_pontos(self, ponto_1, ponto_2):
+
+        """p1 = False
+        p2 = False
+
+        for ponto in self.pontos:
+
+            if ponto_1 == ponto.id:
+
+                p1 = True
+
+            if ponto_2 == ponto.id:
+
+                p2 = True"""
+
+        return self.id if ponto_1 and ponto_2 in self.pontos else -1

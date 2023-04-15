@@ -206,7 +206,6 @@ class NSGA2:
             rota_caminhao.rota.extend(rota)
 
             if len(rota) != 0:
-
                 # Calcula a ida do caminhão até o cluster
                 dist, caminho = nx.single_source_dijkstra(util.grafo_cidade_simplificado, util.DEPOSITO, rota[0][0])
 
@@ -228,7 +227,8 @@ class NSGA2:
                     individual.quantidade_lixo += util.pontos_otimizados[pnt_coleta[0]].quantidade_lixo
 
                     # Verifica antes se a capacidade do veículo vai ser ultrapassada ao recolher aquele ponto
-                    if quantidade_lixo_caminhao + util.pontos_otimizados[pnt_coleta[0]].quantidade_lixo < util.CAPACIDADE_CAMINHAO:
+                    if quantidade_lixo_caminhao + util.pontos_otimizados[
+                        pnt_coleta[0]].quantidade_lixo < util.CAPACIDADE_CAMINHAO:
 
                         quantidade_lixo_caminhao += util.pontos_otimizados[pnt_coleta[0]].quantidade_lixo
                         recolhido.append(pnt_coleta[0])
@@ -259,7 +259,8 @@ class NSGA2:
                     individual.quantidade_lixo += util.pontos_otimizados[pnt_coleta[1]].quantidade_lixo
 
                     # Verifica antes se a capacidade do veículo vai ser ultrapassada ao recolher aquele ponto
-                    if quantidade_lixo_caminhao + util.pontos_otimizados[pnt_coleta[1]].quantidade_lixo < util.CAPACIDADE_CAMINHAO:
+                    if quantidade_lixo_caminhao + util.pontos_otimizados[
+                        pnt_coleta[1]].quantidade_lixo < util.CAPACIDADE_CAMINHAO:
 
                         quantidade_lixo_caminhao += util.pontos_otimizados[pnt_coleta[1]].quantidade_lixo
                         recolhido.append(pnt_coleta[1])
@@ -285,10 +286,10 @@ class NSGA2:
                         recolhido.append(pnt_coleta[1])
 
                 # Incrementa a variação de altitude
-                variacao_altitude += (util.pontos_otimizados[pnt_coleta[0]].altitude - util.pontos_otimizados[pnt_coleta[1]].altitude) / grafo_cluster[pnt_coleta[0]][pnt_coleta[1]][0]["weight"]
+                variacao_altitude += abs(util.pontos_otimizados[pnt_coleta[0]].altitude - util.pontos_otimizados[
+                    pnt_coleta[1]].altitude) / grafo_cluster[pnt_coleta[0]][pnt_coleta[1]][0]["weight"]
 
             if len(rota) != 0:
-
                 # Calcula a volta do caminhao ao depósito
                 dist, caminho = nx.single_source_dijkstra(util.grafo_cidade_simplificado, rota[-1][1], util.DEPOSITO)
 
@@ -308,7 +309,6 @@ class NSGA2:
 
             # E incrementa no tempo do caminhão correspondente
             if vez == len(tempo_caminhoes):
-
                 vez = 0
 
             # Realiza uma simulação do tempo gasto pelo caminhão para recolher o lixo com base na distância
@@ -317,8 +317,9 @@ class NSGA2:
 
         # Retorna a soma de tempo dos caminhões: Métrica de minimização
         # O valor absoluto da variação de altitude: Métrica de minimização
-        # A quantidade de caminhões: Minimização
-        return [sum(tempo_caminhoes), abs(variacao_altitude), individual.genome[0]]
+        # A quantidade de caminhões: Métrica de minimização
+        # return [sum(tempo_caminhoes), abs(variacao_altitude), individual.genome[0]]
+        return [max(tempo_caminhoes), variacao_altitude, individual.genome[0]]
 
     # Função que avalia os indivíduos gerados na população
     def evaluate(self, population):
@@ -335,8 +336,6 @@ class NSGA2:
                 # Avalia e retorna as soluções não normalizadas
                 individual.non_normalized_solutions = self.evaluate_individual(individual)
 
-            """matrix_normalizar = [[individual.non_normalized_solutions[0]], [individual.non_normalized_solutions[1]],
-                                             [individual.non_normalized_solutions[2]], [individual.non_normalized_solutions[3]]]"""
             matrix_normalizar.append([individual.non_normalized_solutions[0],
                                       individual.non_normalized_solutions[1],
                                       individual.non_normalized_solutions[2]])
@@ -348,7 +347,6 @@ class NSGA2:
 
         # Percorre os indivíduos
         for individual in population.individuals:
-
             # Realiza a normalização dos dados do indivíduo em questão
             # normalizado = escalar.transform(matrix_normalizar)
             normalizado = escalar.transform([individual.non_normalized_solutions])
@@ -473,11 +471,11 @@ class NSGA2:
                     if (max_value - min_value) == 0:
 
                         population.individuals[i].crowding_distance += (
-                                    (right_neighbour_value - left_neighbour_value) / 1)
+                                (right_neighbour_value - left_neighbour_value) / 1)
                     else:
 
                         population.individuals[i].crowding_distance += (
-                                    (right_neighbour_value - left_neighbour_value) / (max_value - min_value))
+                                (right_neighbour_value - left_neighbour_value) / (max_value - min_value))
 
     # Retorna o melhor indivíduo de acordo com o operador de crowding
     def crowded_comparison(self, individual_A, individual_B):
@@ -636,7 +634,6 @@ class NSGA2:
 
         # Verifica se não foram gerados indivíduos a mais
         if len(genomes_list) > self.population_size // 2:
-
             genomes_list.pop()
 
         # Cria a população filha
@@ -644,7 +641,6 @@ class NSGA2:
 
         # Adiciona cada uma das crias geradas a população
         for child_genome in genomes_list:
-
             offspring_population.new_individual(child_genome)
 
         return offspring_population
@@ -654,7 +650,6 @@ class NSGA2:
 
         # Verifica se a mutação irá ocorrer
         if random.uniform(0, 1) > self.mutation_rate:
-
             # Se a mutação não for ocorrer, então o genoma é apenas retornado sem nenhuma modificação
             return genome
 
@@ -685,7 +680,6 @@ class NSGA2:
             for i, ponto_inicio in enumerate(genome[2]):
 
                 if random.random() < 0.5:
-
                     genome[2][i] = random.choice(pnts_clusterizados[i])
 
         else:
@@ -716,7 +710,6 @@ class NSGA2:
 
             # Realiza o sorteio dos pontos novamente
             for i in range(len(genome[2])):
-
                 genome[2][i] = random.choice(pnts_clusterizados[i])
 
         return genome
@@ -725,18 +718,15 @@ class NSGA2:
     def create_front_file(self, reference_point):
 
         with open(self.population_file_name, "w") as file_:
-
             file_.write(reference_point + "\n")
 
     # Insere no arquivo a melhor front para o formato que será utilizado no cálculo do hypervolume
     def add_population_to_file(self, front):
 
         with open(self.population_file_name, "a") as file_:
-
             objectives = "["
 
             for individual in front.individuals:
-
                 objectives += str(individual.solutions) + ", "
 
             objectives = objectives[:-2] + "]\n"
@@ -797,57 +787,6 @@ class NSGA2:
     # Gera um arquivo com os resultados obtidos pelo algoritmo
     """def gera_resultados(self, front):
 
-        with open("saida/resultados/dados_coleta.txt", "w") as arq:
-
-            arq.write("*** RESULTADOS OBTIDOS DA COLETA ***\n")
-
-            # Resultados de lixo recolhido
-            arq.write(f"\nQuantidade de lixo recolhido(kg): {front.individuals[0].quantidade_lixo} ({round((front.individuals[0].quantidade_lixo * 100) / util.quantidade_lixo_cidade)}%)")
-
-            # Resultados sobre os parâmetros utilizados
-            arq.write(f"\nNúmero de caminhões utilizados para a realização da coleta: {front.individuals[0].genome[0]}")
-            arq.write(f"\nNúmero de agrupamentos realizados pelo mapa: {front.individuals[0].genome[1]}")
-
-        # Para cada caminhão utilizado na coleta, gera um mapa com a rota a ser realizada por ele
-        for caminhao, rotas_caminhao in front.individuals[0].rotas.items():
-
-            # Percorre cada uma das rotas do caminhão para realizar o plot
-            for rota in rotas_caminhao:
-
-                pontos_lat_lon = []
-                mapa_plot = None
-                ruas_lat_lon = []
-
-                # Em cada rota, percorre os pontos que a formam
-                for pnt in rota:
-
-                    # Obtém a latitude e longitude dos pontos a serem plotados
-                    pontos_lat_lon.append((util.pontos[pnt[0]].latitude, util.pontos[pnt[0]].longitude))
-                    pontos_lat_lon.append((util.pontos[pnt[1]].latitude, util.pontos[pnt[1]].longitude))
-
-                    # Obtém a rua referente a aresta representada pelos pontos
-                    rua = util.grafo_cidade_simplificado[pnt[0]][pnt[1]][0]["rua"]
-
-                    for pnt_rua in rua.pontos:
-
-                        ruas_lat_lon.append((float(pnt_rua.latitude), float(pnt_rua.longitude)))
-
-                    if mapa_plot is None:
-
-                        # Adiciona o local inicial a plotagem
-                        mapa_plot = util.gmplot.GoogleMapPlotter(util.pontos[pnt[0]].latitude,
-                                                                 util.pontos[pnt[0]].longitude, 13)
-
-                    rua_lat, rua_lon = zip(*ruas_lat_lon)
-                    mapa_plot.scatter(rua_lat, rua_lon, '#3B0B39', size=5, marker=False)
-                    mapa_plot.plot(rua_lat, rua_lon, 'cornflowerblue', edge_width=3)
-
-                draw_lat, draw_lon = zip(*pontos_lat_lon)
-                mapa_plot.scatter(draw_lat, draw_lon, '#3B0B39', size=5, marker=False)
-                mapa_plot.draw(f'saida/Resultados/rotas/rota_{caminhao}.html')"""
-
-    """def gera_resultados(self, front):
-
         # Arquivo com algumas informações gerais da coleta
         with open("saida/resultados/dados_coleta.txt", "w") as arq:
 
@@ -861,142 +800,207 @@ class NSGA2:
             arq.write(f"\nNúmero de caminhões utilizados para a realização da coleta: {front.individuals[0].genome[0]}")
             arq.write(f"\nNúmero de agrupamentos realizados pelo mapa: {front.individuals[0].genome[1]}")
 
-        # Para cada caminhão utilizado na coleta, gera um mapa com a rota a ser realizada por ele
-        for caminhao, rotas_caminhao in front.individuals[0].rotas.items():
+        with open("saida/resultados/rotas/arquivo_rota_completa.kml", "w") as rota_completa:
 
-            # Percorre cada uma das rotas do caminhão para realizar o plot
-            for num_rota, rota in enumerate(rotas_caminhao):
+            rota_completa.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                      "<kml xmlns=\"http://www.opengis.net/kml/2.2\">\n"
+                      "<Document>\n"
+                      "<name>Rota completa de todos os caminhões</name>\n"
+                      "<Style id=\"icon-1899-DB4436-nodesc-normal\">\n"
+                      "<IconStyle>\n"
+                      "<color>ff3644db</color>\n"
+                      "<scale>1</scale>\n"
+                      "<Icon>\n"
+                      "<href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>\n"
+                      "</Icon>\n"
+                      "<hotSpot x=\"32\" xunits=\"pixels\" y=\"64\" yunits=\"insetPixels\"/>\n"
+                      "</IconStyle>\n"
+                      "<LabelStyle>\n"
+                      "<scale>0</scale>\n"
+                      "</LabelStyle>\n"
+                      "<BalloonStyle>\n"
+                      "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
+                      "</BalloonStyle>\n"
+                      "</Style>\n"
+                      "<Style id=\"icon-1899-DB4436-nodesc-highlight\">\n"
+                      "<IconStyle>\n"
+                      "<color>ff3644db</color>\n"
+                      "<scale>1</scale>\n"
+                      "<Icon>\n"
+                      "<href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>\n"
+                      "</Icon>\n"
+                      "<hotSpot x=\"32\" xunits=\"pixels\" y=\"64\" yunits=\"insetPixels\"/>\n"
+                      "</IconStyle>\n"
+                      "<LabelStyle>\n"
+                      "<scale>1</scale>\n"
+                      "</LabelStyle>\n"
+                      "<BalloonStyle>\n"
+                      "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
+                      "</BalloonStyle>\n"
+                      "</Style>\n"
+                      "<StyleMap id=\"icon-1899-DB4436-nodesc\">\n"
+                      "<Pair>\n"
+                      "<key>normal</key>\n"
+                      "<styleUrl>#icon-1899-DB4436-nodesc-normal</styleUrl>\n"
+                      "</Pair>\n"
+                      "<Pair>\n"
+                      "<key>highlight</key>\n"
+                      "<styleUrl>#icon-1899-DB4436-nodesc-highlight</styleUrl>\n"
+                      "</Pair>\n"
+                      "</StyleMap>\n"
+                      "<Style id=\"line-1267FF-5000-nodesc-normal\">\n"
+                      "<LineStyle>\n"
+                      "<color>ffff6712</color>\n"
+                      "<width>5</width>\n"
+                      "</LineStyle>\n"
+                      "<BalloonStyle>\n"
+                      "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
+                      "</BalloonStyle>\n"
+                      "</Style>\n"
+                      "<Style id=\"line-1267FF-5000-nodesc-highlight\">\n"
+                      "<LineStyle>\n"
+                      "<color>ffff6712</color>\n"
+                      "<width>7.5</width>\n"
+                      "</LineStyle>\n"
+                      "<BalloonStyle>\n"
+                      "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
+                      "</BalloonStyle>\n"
+                      "</Style>\n"
+                      "<StyleMap id=\"line-1267FF-5000-nodesc\">\n"
+                      "<Pair>\n"
+                      "<key>normal</key>\n"
+                      "<styleUrl>#line-1267FF-5000-nodesc-normal</styleUrl>\n"
+                      "</Pair>\n"
+                      "<Pair>\n"
+                      "<key>highlight</key>\n"
+                      "<styleUrl>#line-1267FF-5000-nodesc-highlight</styleUrl>\n"
+                      "</Pair>\n"
+                      "</StyleMap>\n")
 
-                # Abre os arquivos que irão descrever a rota do caminhão
-                with open(f"saida/resultados/rotas/caminhao{caminhao}_rota_{num_rota}.kml", "w") as arq, \
-                        open(f"saida/resultados/rotas/caminhao{caminhao}_rota_{num_rota}.txt", "w") as txt:
+            # Para cada caminhão utilizado na coleta, gera um mapa com a rota a ser realizada por ele
+            for caminhao, rotas_caminhao in front.individuals[0].rotas.items():
 
-                    # Para o arquivo kml, o cabeçalho é padrão, muda somente o nome
-                    arq.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                              "<kml xmlns=\"http://www.opengis.net/kml/2.2\">\n"
-                              "<Document>\n"
-                              f"<name>Rota {num_rota} caminhão {caminhao}</name>\n"
-                              "<Style id=\"icon-1899-DB4436-nodesc-normal\">\n"
-                              "<IconStyle>\n"
-                              "<color>ff3644db</color>\n"
-                              "<scale>1</scale>\n"
-                              "<Icon>\n"
-                              "<href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>\n"
-                              "</Icon>\n"
-                              "<hotSpot x=\"32\" xunits=\"pixels\" y=\"64\" yunits=\"insetPixels\"/>\n"
-                              "</IconStyle>\n"
-                              "<LabelStyle>\n"
-                              "<scale>0</scale>\n"
-                              "</LabelStyle>\n"
-                              "<BalloonStyle>\n"
-                              "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
-                              "</BalloonStyle>\n"
-                              "</Style>\n"
-                              "<Style id=\"icon-1899-DB4436-nodesc-highlight\">\n"
-                              "<IconStyle>\n"
-                              "<color>ff3644db</color>\n"
-                              "<scale>1</scale>\n"
-                              "<Icon>\n"
-                              "<href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>\n"
-                              "</Icon>\n"
-                              "<hotSpot x=\"32\" xunits=\"pixels\" y=\"64\" yunits=\"insetPixels\"/>\n"
-                              "</IconStyle>\n"
-                              "<LabelStyle>\n"
-                              "<scale>1</scale>\n"
-                              "</LabelStyle>\n"
-                              "<BalloonStyle>\n"
-                              "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
-                              "</BalloonStyle>\n"
-                              "</Style>\n"
-                              "<StyleMap id=\"icon-1899-DB4436-nodesc\">\n"
-                              "<Pair>\n"
-                              "<key>normal</key>\n"
-                              "<styleUrl>#icon-1899-DB4436-nodesc-normal</styleUrl>\n"
-                              "</Pair>\n"
-                              "<Pair>\n"
-                              "<key>highlight</key>\n"
-                              "<styleUrl>#icon-1899-DB4436-nodesc-highlight</styleUrl>\n"
-                              "</Pair>\n"
-                              "</StyleMap>\n"
-                              "<Style id=\"line-1267FF-5000-nodesc-normal\">\n"
-                              "<LineStyle>\n"
-                              "<color>ffff6712</color>\n"
-                              "<width>5</width>\n"
-                              "</LineStyle>\n"
-                              "<BalloonStyle>\n"
-                              "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
-                              "</BalloonStyle>\n"
-                              "</Style>\n"
-                              "<Style id=\"line-1267FF-5000-nodesc-highlight\">\n"
-                              "<LineStyle>\n"
-                              "<color>ffff6712</color>\n"
-                              "<width>7.5</width>\n"
-                              "</LineStyle>\n"
-                              "<BalloonStyle>\n"
-                              "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
-                              "</BalloonStyle>\n"
-                              "</Style>\n"
-                              "<StyleMap id=\"line-1267FF-5000-nodesc\">\n"
-                              "<Pair>\n"
-                              "<key>normal</key>\n"
-                              "<styleUrl>#line-1267FF-5000-nodesc-normal</styleUrl>\n"
-                              "</Pair>\n"
-                              "<Pair>\n"
-                              "<key>highlight</key>\n"
-                              "<styleUrl>#line-1267FF-5000-nodesc-highlight</styleUrl>\n"
-                              "</Pair>\n"
-                              "</StyleMap>\n"
-                              "<Placemark>\n"
-                              f"<name>Rota {num_rota} caminhão {caminhao}</name>\n"
-                              "<styleUrl>#line-1267FF-5000-nodesc</styleUrl>\n"
-                              "<LineString>\n"
-                              "<tessellate>1</tessellate>\n"
-                              "<coordinates>\n")
+                # Percorre cada uma das rotas do caminhão para realizar o plot
+                for num_rota, rota in enumerate(rotas_caminhao):
 
-                    # Variável que permite que o primeiro ponto da tupla seja escrito, para que a rota fique correta
-                    # Isso é feito pois as tuplas da rota vem da seguinte maneira:
-                    # [(1, 2), (2, 3), (3, 4), (4, 5)]
-                    primeiro_pnt = True
+                    # Abre os arquivos que irão descrever a rota do caminhão
+                    with open(f"saida/resultados/rotas/caminhao{caminhao}_rota_{num_rota}.txt", "w") as txt:
 
-                    # Em cada rota, percorre os pontos que a formam
-                    for pnt in rota:
+                        rota_completa.write("<Folder>\n"
+                                            f"<name>Rota {num_rota} caminhão {caminhao}</name>\n"
+                                            "<Placemark>\n"
+                                            f"<name>Rota {num_rota} caminhão {caminhao}</name>\n"
+                                            "<styleUrl>#line-1267FF-5000-nodesc</styleUrl>\n"
+                                            "<LineString>\n"
+                                            "<tessellate>1</tessellate>\n"
+                                            "<coordinates>\n")
 
-                        if util.grafo_cidade_simplificado.has_edge(pnt[0], pnt[1]):
+                        # Variável que permite que o primeiro ponto da tupla seja escrito, para que a rota fique correta
+                        # Isso é feito pois as tuplas da rota vem da seguinte maneira:
+                        # [(1, 2), (2, 3), (3, 4), (4, 5)]
+                        primeiro_pnt = True
 
-                            # Escreve os detalhes da rota num arquivo txt
-                            rua = util.grafo_cidade_simplificado[pnt[0]][pnt[1]][0]["rua"]
+                        # Em cada rota, percorre os pontos que a formam
+                        for pnt in rota.rota:
 
-                            if rua.nome is not None and rua.nome is not "":
+                            if util.grafo_cidade_simplificado.has_edge(pnt[0], pnt[1]):
 
-                                # TODO VOLTAR
-                                # txt.write(rua.nome + " -> ")
-                                pass
+                                # Escreve os detalhes da rota num arquivo txt
+                                rua = util.grafo_cidade_simplificado[pnt[0]][pnt[1]][0]["rua"]
 
-                        txt.write(f"{pnt} -> ")
+                                if rua.nome is not None and rua.nome is not "":
 
-                        if primeiro_pnt:
+                                    txt.write(rua.nome + " -> ")
 
-                            arq.write(f"{util.pontos[pnt[0]].longitude}, {util.pontos[pnt[0]].latitude}, 0\n")
-                            arq.write(f"{util.pontos[pnt[1]].longitude}, {util.pontos[pnt[1]].latitude}, 0\n")
-                            primeiro_pnt = False
-                        else:
+                            if primeiro_pnt:
 
-                            arq.write(f"{util.pontos[pnt[1]].longitude}, {util.pontos[pnt[1]].latitude}, 0\n")
+                                rota_completa.write(f"{util.pontos[pnt[0]].longitude}, {util.pontos[pnt[0]].latitude}, 0\n")
+                                rota_completa.write(f"{util.pontos[pnt[1]].longitude}, {util.pontos[pnt[1]].latitude}, 0\n")
 
-                    arq.write("</coordinates>\n"
-                              "</LineString>\n"
-                              "</Placemark>\n"
-                              "<Placemark>\n"
-                              "<name>DEPÓSITO</name>\n"
-                              "<styleUrl>#icon-1899-DB4436-nodesc</styleUrl>\n"
-                              "<Point>\n"
-                              "<coordinates>\n"
-                              f"{util.pontos[util.DEPOSITO].longitude}, {util.pontos[util.DEPOSITO].latitude}, 0\n"
-                              "</coordinates>\n"
-                              "</Point>\n"
-                              "</Placemark>\n"
-                              "</Document>\n"
-                              "</kml>\n")"""
+                                primeiro_pnt = False
+                            else:
+
+                                rota_completa.write(f"{util.pontos[pnt[1]].longitude}, {util.pontos[pnt[1]].latitude}, 0\n")
+
+                        rota_completa.write("</coordinates>\n"
+                                            "</LineString>\n"
+                                            "</Placemark>\n")
+
+                        # Escreve a rota de ida
+                        if rota.ida:
+
+                            rota_completa.write("<Placemark>\n"
+                                                f"<name> Ida do depósito a Rota {num_rota} do caminhão {caminhao}</name>\n"
+                                                "<styleUrl>#line-1267FF-5000-nodesc</styleUrl>\n"
+                                                "<LineString>\n"
+                                                "<tessellate>1</tessellate>\n"
+                                                "<coordinates>\n")
+
+                            primeiro_pnt = True
+
+                            for ponto_ida in rota.ida:
+
+                                if primeiro_pnt:
+
+                                    rota_completa.write(
+                                        f"{util.pontos[ponto_ida[0]].longitude}, {util.pontos[ponto_ida[0]].latitude}, 0\n")
+                                    rota_completa.write(
+                                        f"{util.pontos[ponto_ida[1]].longitude}, {util.pontos[ponto_ida[1]].latitude}, 0\n")
+
+                                    primeiro_pnt = False
+                                else:
+
+                                    rota_completa.write(
+                                        f"{util.pontos[ponto_ida[1]].longitude}, {util.pontos[ponto_ida[1]].latitude}, 0\n")
+
+                            rota_completa.write("</coordinates>\n"
+                                                "</LineString>\n"
+                                                "</Placemark>\n")
+
+                        # Escreve a rota de volta
+                        if rota.volta:
+
+                            rota_completa.write("<Placemark>\n"
+                                                f"<name> Volta da Rota {num_rota} do caminhão {caminhao} ao depósito</name>\n"
+                                                "<styleUrl>#line-1267FF-5000-nodesc</styleUrl>\n"
+                                                "<LineString>\n"
+                                                "<tessellate>1</tessellate>\n"
+                                                "<coordinates>\n")
+
+                            primeiro_pnt = True
+
+                            for ponto_volta in rota.volta:
+
+                                if primeiro_pnt:
+
+                                    rota_completa.write(
+                                        f"{util.pontos[ponto_volta[0]].longitude}, {util.pontos[ponto_volta[0]].latitude}, 0\n")
+                                    rota_completa.write(
+                                        f"{util.pontos[ponto_volta[1]].longitude}, {util.pontos[ponto_volta[1]].latitude}, 0\n")
+
+                                    primeiro_pnt = False
+                                else:
+
+                                    rota_completa.write(
+                                        f"{util.pontos[ponto_volta[1]].longitude}, {util.pontos[ponto_volta[1]].latitude}, 0\n")
+
+                            rota_completa.write("</coordinates>\n"
+                                                "</LineString>\n"
+                                                "</Placemark>\n")
+
+                        rota_completa.write("<Placemark>\n"
+                                            "<name>DEPÓSITO</name>\n"
+                                            "<styleUrl>#icon-1899-DB4436-nodesc</styleUrl>\n"
+                                            "<Point>\n"
+                                            "<coordinates>\n"
+                                            f"{util.pontos[util.DEPOSITO].longitude}, {util.pontos[util.DEPOSITO].latitude}, 0\n"
+                                            "</coordinates>\n"
+                                            "</Point>\n"
+                                            "</Placemark>\n"
+                                            "</Folder>\n")
+
+            rota_completa.write("</Document>\n"
+                                "</kml>\n")"""
 
     def gera_resultados(self, front):
 
@@ -1013,190 +1017,193 @@ class NSGA2:
             arq.write(f"\nNúmero de caminhões utilizados para a realização da coleta: {front.individuals[0].genome[0]}")
             arq.write(f"\nNúmero de agrupamentos realizados pelo mapa: {front.individuals[0].genome[1]}")
 
-        # Para cada caminhão utilizado na coleta, gera um mapa com a rota a ser realizada por ele
-        for caminhao, rotas_caminhao in front.individuals[0].rotas.items():
+        with open("saida/resultados/rotas/arquivo_rota_completa.kml", "w") as rota_completa:
 
-            # Percorre cada uma das rotas do caminhão para realizar o plot
-            for num_rota, rota in enumerate(rotas_caminhao):
+            rota_completa.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                                "<kml xmlns=\"http://www.opengis.net/kml/2.2\" "
+                                "xmlns:gx=\"http://www.google.com/kml/ext/2.2\" "
+                                "xmlns:kml=\"http://www.opengis.net/kml/2.2\" "
+                                "xmlns:atom=\"http://www.w3.org/2005/Atom\">\n"
+                                "<Document>\n"
+                                "<name>Rotas de coleta geradas Formiga-MG</name>\n"
+                                "<gx:CascadingStyle kml:id=\"s3\">\n"
+                                "<Style>\n"
+                                "<IconStyle>\n"
+                                "<scale>1.2</scale>\n"
+                                "<Icon>\n"
+                                "<href>https://earth.google.com/earth/rpc/cc/icon?color=1976d2&amp;id=2000&amp;scale"
+                                "=4</href>\n"
+                                "</Icon>\n"
+                                "<hotSpot x=\"64\" y=\"128\" xunits=\"pixels\" yunits=\"insetPixels\"/>\n"
+                                "</IconStyle>\n"
+                                "<LabelStyle>\n"
+                                "</LabelStyle>\n"
+                                "<LineStyle>\n"
+                                "<color>ff9f3f30</color>\n"
+                                "<width>6</width>\n"
+                                "</LineStyle>\n"
+                                "<PolyStyle>\n"
+                                "<color>40ffffff</color>\n"
+                                "</PolyStyle>\n"
+                                "<BalloonStyle>\n"
+                                "<displayMode>hide</displayMode>\n"
+                                "</BalloonStyle>\n"
+                                "</Style>\n"
+                                "</gx:CascadingStyle>\n"
+                                "<gx:CascadingStyle kml:id=\"s2\">\n"
+                                "<Style>\n"
+                                "<IconStyle>\n"
+                                "<Icon>\n"
+                                "<href>https://earth.google.com/earth/rpc/cc/icon?color=1976d2&amp;id=2000&amp;scale"
+                                "=4</href>\n"
+                                "</Icon>\n"
+                                "<hotSpot x=\"64\" y=\"128\" xunits=\"pixels\" yunits=\"insetPixels\"/>\n"
+                                "</IconStyle>\n"
+                                "<LabelStyle>\n"
+                                "</LabelStyle>\n"
+                                "<LineStyle>\n"
+                                "<color>ff9f3f30</color>\n"
+                                "<width>4</width>\n"
+                                "</LineStyle>\n"
+                                "<PolyStyle>\n"
+                                "<color>40ffffff</color>\n"
+                                "</PolyStyle>\n"
+                                "<BalloonStyle>\n"
+                                "<displayMode>hide</displayMode>\n"
+                                "</BalloonStyle>\n"
+                                "</Style>\n"
+                                "</gx:CascadingStyle>\n"
+                                "<StyleMap id=\"s1\">\n"
+                                "<Pair>\n"
+                                "<key>normal</key>\n"
+                                "<styleUrl>#s2</styleUrl>\n"
+                                "</Pair>\n"
+                                "<Pair>\n"
+                                "<key>highlight</key>\n"
+                                "<styleUrl>#s3</styleUrl>\n"
+                                "</Pair>\n"
+                                "</StyleMap>\n")
 
-                # Abre os arquivos que irão descrever a rota do caminhão
-                with open(f"saida/resultados/rotas/caminhao{caminhao}_rota_{num_rota}.kml", "w") as arq, \
-                        open(f"saida/resultados/rotas/caminhao{caminhao}_rota_{num_rota}.txt", "w") as txt:
+            # Para cada caminhão utilizado na coleta, gera um mapa com a rota a ser realizada por ele
+            for caminhao, rotas_caminhao in front.individuals[0].rotas.items():
 
-                    # Para o arquivo kml, o cabeçalho é padrão, muda somente o nome
-                    arq.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                              "<kml xmlns=\"http://www.opengis.net/kml/2.2\">\n"
-                              "<Document>\n"
-                              f"<name>Rota {num_rota} caminhão {caminhao}</name>\n"
-                              "<Style id=\"icon-1899-DB4436-nodesc-normal\">\n"
-                              "<IconStyle>\n"
-                              "<color>ff3644db</color>\n"
-                              "<scale>1</scale>\n"
-                              "<Icon>\n"
-                              "<href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>\n"
-                              "</Icon>\n"
-                              "<hotSpot x=\"32\" xunits=\"pixels\" y=\"64\" yunits=\"insetPixels\"/>\n"
-                              "</IconStyle>\n"
-                              "<LabelStyle>\n"
-                              "<scale>0</scale>\n"
-                              "</LabelStyle>\n"
-                              "<BalloonStyle>\n"
-                              "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
-                              "</BalloonStyle>\n"
-                              "</Style>\n"
-                              "<Style id=\"icon-1899-DB4436-nodesc-highlight\">\n"
-                              "<IconStyle>\n"
-                              "<color>ff3644db</color>\n"
-                              "<scale>1</scale>\n"
-                              "<Icon>\n"
-                              "<href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>\n"
-                              "</Icon>\n"
-                              "<hotSpot x=\"32\" xunits=\"pixels\" y=\"64\" yunits=\"insetPixels\"/>\n"
-                              "</IconStyle>\n"
-                              "<LabelStyle>\n"
-                              "<scale>1</scale>\n"
-                              "</LabelStyle>\n"
-                              "<BalloonStyle>\n"
-                              "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
-                              "</BalloonStyle>\n"
-                              "</Style>\n"
-                              "<StyleMap id=\"icon-1899-DB4436-nodesc\">\n"
-                              "<Pair>\n"
-                              "<key>normal</key>\n"
-                              "<styleUrl>#icon-1899-DB4436-nodesc-normal</styleUrl>\n"
-                              "</Pair>\n"
-                              "<Pair>\n"
-                              "<key>highlight</key>\n"
-                              "<styleUrl>#icon-1899-DB4436-nodesc-highlight</styleUrl>\n"
-                              "</Pair>\n"
-                              "</StyleMap>\n"
-                              "<Style id=\"line-1267FF-5000-nodesc-normal\">\n"
-                              "<LineStyle>\n"
-                              "<color>ffff6712</color>\n"
-                              "<width>5</width>\n"
-                              "</LineStyle>\n"
-                              "<BalloonStyle>\n"
-                              "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
-                              "</BalloonStyle>\n"
-                              "</Style>\n"
-                              "<Style id=\"line-1267FF-5000-nodesc-highlight\">\n"
-                              "<LineStyle>\n"
-                              "<color>ffff6712</color>\n"
-                              "<width>7.5</width>\n"
-                              "</LineStyle>\n"
-                              "<BalloonStyle>\n"
-                              "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
-                              "</BalloonStyle>\n"
-                              "</Style>\n"
-                              "<StyleMap id=\"line-1267FF-5000-nodesc\">\n"
-                              "<Pair>\n"
-                              "<key>normal</key>\n"
-                              "<styleUrl>#line-1267FF-5000-nodesc-normal</styleUrl>\n"
-                              "</Pair>\n"
-                              "<Pair>\n"
-                              "<key>highlight</key>\n"
-                              "<styleUrl>#line-1267FF-5000-nodesc-highlight</styleUrl>\n"
-                              "</Pair>\n"
-                              "</StyleMap>\n"
-                              "<Placemark>\n"
-                              f"<name>Rota {num_rota} caminhão {caminhao}</name>\n"
-                              "<styleUrl>#line-1267FF-5000-nodesc</styleUrl>\n"
-                              "<LineString>\n"
-                              "<tessellate>1</tessellate>\n"
-                              "<coordinates>\n")
+                # Percorre cada uma das rotas do caminhão para realizar o plot
+                for num_rota, rota in enumerate(rotas_caminhao):
 
-                    # Variável que permite que o primeiro ponto da tupla seja escrito, para que a rota fique correta
-                    # Isso é feito pois as tuplas da rota vem da seguinte maneira:
-                    # [(1, 2), (2, 3), (3, 4), (4, 5)]
-                    primeiro_pnt = True
+                    # Abre os arquivos que irão descrever a rota do caminhão
+                    with open(f"saida/resultados/rotas/caminhao{caminhao}_rota_{num_rota}.txt", "w") as txt:
 
-                    # Em cada rota, percorre os pontos que a formam
-                    for pnt in rota.rota:
+                        # Adicona o depósito da rota
+                        rota_completa.write(f"<Folder id=\"f{caminhao}\">\n"
+                                            f"<name>Rota {num_rota} caminhão {caminhao}</name>\n"
+                                            "<styleUrl>#s1</styleUrl>\n"
+                                            f"<Placemark id=\"d{caminhao}{num_rota}\">\n"
+                                            "<name>Depósito</name>\n"
+                                            "<styleUrl>#s1</styleUrl>\n"
+                                            "<Point>\n"
+                                            f"<coordinates>{util.pontos[util.DEPOSITO].longitude},{util.pontos[util.DEPOSITO].latitude},{util.pontos[util.DEPOSITO].altitude}</coordinates>\n"
+                                            "</Point>\n"
+                                            "</Placemark>\n"
+                                            f"<Placemark id=\"r{caminhao}{num_rota}\">\n"
+                                            f"<name>Rota {num_rota} caminhão {caminhao}</name>\n"
+                                            "<styleUrl>#s1</styleUrl>\n"
+                                            "<LineString>\n"
+                                            "<coordinates>\n")
 
-                        if util.grafo_cidade_simplificado.has_edge(pnt[0], pnt[1]):
-
-                            # Escreve os detalhes da rota num arquivo txt
-                            rua = util.grafo_cidade_simplificado[pnt[0]][pnt[1]][0]["rua"]
-
-                            if rua.nome is not None and rua.nome is not "":
-
-                                txt.write(rua.nome + " -> ")
-
-                        if primeiro_pnt:
-
-                            arq.write(f"{util.pontos[pnt[0]].longitude}, {util.pontos[pnt[0]].latitude}, 0\n")
-                            arq.write(f"{util.pontos[pnt[1]].longitude}, {util.pontos[pnt[1]].latitude}, 0\n")
-                            primeiro_pnt = False
-                        else:
-
-                            arq.write(f"{util.pontos[pnt[1]].longitude}, {util.pontos[pnt[1]].latitude}, 0\n")
-
-                    arq.write("</coordinates>\n"
-                              "</LineString>\n"
-                              "</Placemark>\n")
-
-                    # Escreve a rota de ida
-                    if rota.ida:
-
-                        arq.write("<Placemark>\n"
-                                  f"<name> Ida do depósito a Rota {num_rota} do caminhão {caminhao}</name>\n"
-                                  "<styleUrl>#line-1267FF-5000-nodesc</styleUrl>\n"
-                                  "<LineString>\n"
-                                  "<tessellate>1</tessellate>\n"
-                                  "<coordinates>\n")
-
+                        # Variável que permite que o primeiro ponto da tupla seja escrito, para que a rota fique correta
+                        # Isso é feito pois as tuplas da rota vem da seguinte maneira:
+                        # [(1, 2), (2, 3), (3, 4), (4, 5)]
                         primeiro_pnt = True
 
-                        for ponto_ida in rota.ida:
+                        # Em cada rota, percorre os pontos que a formam
+                        for pnt in rota.rota:
+
+                            if util.grafo_cidade_simplificado.has_edge(pnt[0], pnt[1]):
+
+                                # Escreve os detalhes da rota num arquivo txt
+                                rua = util.grafo_cidade_simplificado[pnt[0]][pnt[1]][0]["rua"]
+
+                                if rua.nome is not None and rua.nome is not "":
+                                    txt.write(rua.nome + " -> ")
 
                             if primeiro_pnt:
 
-                                arq.write(f"{util.pontos[ponto_ida[0]].longitude}, {util.pontos[ponto_ida[0]].latitude}, 0\n")
-                                arq.write(f"{util.pontos[ponto_ida[1]].longitude}, {util.pontos[ponto_ida[1]].latitude}, 0\n")
+                                rota_completa.write(
+                                    f"{util.pontos[pnt[0]].longitude},{util.pontos[pnt[0]].latitude},{util.pontos[pnt[0]].altitude} ")
+                                rota_completa.write(
+                                    f"{util.pontos[pnt[1]].longitude},{util.pontos[pnt[1]].latitude},{util.pontos[pnt[1]].altitude} ")
+
                                 primeiro_pnt = False
                             else:
 
-                                arq.write(f"{util.pontos[ponto_ida[1]].longitude}, {util.pontos[ponto_ida[1]].latitude}, 0\n")
+                                rota_completa.write(
+                                    f"{util.pontos[pnt[1]].longitude},{util.pontos[pnt[1]].latitude},{util.pontos[pnt[1]].altitude} ")
 
-                        arq.write("</coordinates>\n"
-                                  "</LineString>\n"
-                                  "</Placemark>\n")
+                        rota_completa.write("</coordinates>\n"
+                                            "</LineString>\n"
+                                            "</Placemark>\n")
 
-                    # Escreve a rota de volta
-                    if rota.volta:
+                        # Escreve a rota de ida
+                        if rota.ida:
 
-                        arq.write("<Placemark>\n"
-                                  f"<name> Volta da Rota {num_rota} do caminhão {caminhao} ao depósito</name>\n"
-                                  "<styleUrl>#line-1267FF-5000-nodesc</styleUrl>\n"
-                                  "<LineString>\n"
-                                  "<tessellate>1</tessellate>\n"
-                                  "<coordinates>\n")
+                            rota_completa.write(f"<Placemark id=\"ri{caminhao}{num_rota}\">\n"
+                                                f"<name> Ida do depósito a Rota {num_rota} do caminhão {caminhao}</name>\n"
+                                                "<styleUrl>#s1</styleUrl>\n"
+                                                "<LineString>\n"
+                                                "<coordinates>\n")
 
-                        primeiro_pnt = True
+                            primeiro_pnt = True
 
-                        for ponto_volta in rota.volta:
+                            for ponto_ida in rota.ida:
 
-                            if primeiro_pnt:
+                                if primeiro_pnt:
 
-                                arq.write(f"{util.pontos[ponto_volta[0]].longitude}, {util.pontos[ponto_volta[0]].latitude}, 0\n")
-                                arq.write(f"{util.pontos[ponto_volta[1]].longitude}, {util.pontos[ponto_volta[1]].latitude}, 0\n")
-                                primeiro_pnt = False
-                            else:
+                                    rota_completa.write(
+                                        f"{util.pontos[ponto_ida[0]].longitude},{util.pontos[ponto_ida[0]].latitude},{util.pontos[ponto_ida[0]].altitude} ")
+                                    rota_completa.write(
+                                        f"{util.pontos[ponto_ida[1]].longitude},{util.pontos[ponto_ida[1]].latitude},{util.pontos[ponto_ida[1]].altitude} ")
 
-                                arq.write(f"{util.pontos[ponto_volta[1]].longitude}, {util.pontos[ponto_volta[1]].latitude}, 0\n")
+                                    primeiro_pnt = False
+                                else:
 
-                        arq.write("</coordinates>\n"
-                                  "</LineString>\n"
-                                  "</Placemark>\n")
+                                    rota_completa.write(
+                                        f"{util.pontos[ponto_ida[1]].longitude},{util.pontos[ponto_ida[1]].latitude},{util.pontos[ponto_ida[1]].altitude} ")
 
-                    arq.write("<Placemark>\n"
-                              "<name>DEPÓSITO</name>\n"
-                              "<styleUrl>#icon-1899-DB4436-nodesc</styleUrl>\n"
-                              "<Point>\n"
-                              "<coordinates>\n"
-                              f"{util.pontos[util.DEPOSITO].longitude}, {util.pontos[util.DEPOSITO].latitude}, 0\n"
-                              "</coordinates>\n"
-                              "</Point>\n"
-                              "</Placemark>\n"
-                              "</Document>\n"
-                              "</kml>\n")
+                            rota_completa.write("</coordinates>\n"
+                                                "</LineString>\n"
+                                                "</Placemark>\n")
+
+                        # Escreve a rota de volta
+                        if rota.volta:
+
+                            rota_completa.write(f"<Placemark id=\"rv{caminhao}{num_rota}\">\n"
+                                                f"<name> Volta da Rota {num_rota} do caminhão {caminhao} ao depósito</name>\n"
+                                                "<styleUrl>#s1</styleUrl>\n"
+                                                "<LineString>\n"
+                                                "<coordinates>\n")
+
+                            primeiro_pnt = True
+
+                            for ponto_volta in rota.volta:
+
+                                if primeiro_pnt:
+
+                                    rota_completa.write(
+                                        f"{util.pontos[ponto_volta[0]].longitude},{util.pontos[ponto_volta[0]].latitude},{util.pontos[ponto_volta[0]].altitude} ")
+                                    rota_completa.write(
+                                        f"{util.pontos[ponto_volta[1]].longitude},{util.pontos[ponto_volta[1]].latitude},{util.pontos[ponto_volta[1]].altitude} ")
+
+                                    primeiro_pnt = False
+                                else:
+
+                                    rota_completa.write(
+                                        f"{util.pontos[ponto_volta[1]].longitude},{util.pontos[ponto_volta[1]].latitude},{util.pontos[ponto_volta[1]].altitude} ")
+
+                            rota_completa.write("</coordinates>\n"
+                                                "</LineString>\n"
+                                                "</Placemark>\n")
+
+                        rota_completa.write("</Folder>\n")
+
+            rota_completa.write("</Document>\n"
+                                "</kml>\n")
