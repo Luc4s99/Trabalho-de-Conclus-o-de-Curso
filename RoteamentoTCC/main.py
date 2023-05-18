@@ -6,7 +6,6 @@ Link do GitHub: https://github.com/SauloRicardo/TCC_Final
 """
 
 import RoteamentoTCC.util as util
-import os
 
 
 def main():
@@ -32,6 +31,11 @@ def main():
 
     # Monta o dicionário com os pontos otimizados
     util.otimiza_grafo()
+
+    print("Configurando altitude dos pontos...")
+
+    # Obtém as alturas dos pontos
+    # util.captura_altitude()
 
     # Adiciona as altitudes dos pontos
     util.adiciona_alturas()
@@ -61,7 +65,7 @@ def main():
         # Monta o 'cache' dos mapas eulerizados
         util.monta_cache_mapas()
 
-        melhor_front = util.processamento_rotas(150, 100, 0.4, 0.6)
+        melhor_front = util.processamento_rotas(150, 120, 0.4, 0.6)
         # melhor_front = util.processamento_rotas(30, 10, 0.4, 0.6)
 
         for ind in melhor_front.individuals:
@@ -77,6 +81,7 @@ if __name__ == '__main__':
 
     # Arquivo OSM com os dados inicias
     # nome_arquivo = "entrada/entrada_pequena.osm"
-    nome_arquivo = "entrada/entrada_grande.osm"
+    # nome_arquivo = "entrada/entrada_grande.osm"
+    nome_arquivo = "entrada/entrada_lagoa.osm"
 
     main()

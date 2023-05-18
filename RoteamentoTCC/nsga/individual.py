@@ -31,8 +31,8 @@ class Individual:
         # List of individuals that are dominated by this individual
         self.dominated_by = list()
 
-        # Lista com os pontos clusterizados do indivíduo
-        # self.pontos_clusterizados = {}
+        # Lista com a quilometragem percorrida por cada caminhão
+        self.quilometragem_caminhoes = []
 
         self.rank = None
 
@@ -112,3 +112,17 @@ class Individual:
             result = "[" + str(self.dominated_by[0].name) + "]"
 
         return result
+
+    # Função que calcula o tempo aproximado de coleta na cidade
+    # Cálculo realizado  com base numa velocidade mpedia de 10km/h
+    def calcula_tempo_coleta(self):
+
+        # Tempo da coleta(minutos)
+        # 166.6 representa a quantidade de metros percorridos por minuto
+        return max(self.quilometragem_caminhoes) / 166.6
+
+    def calcula_menor_tempo_coleta(self):
+
+        # Tempo da coleta(minutos)
+        # 166.6 representa a quantidade de metros percorridos por minuto
+        return min(self.quilometragem_caminhoes) / 166.6

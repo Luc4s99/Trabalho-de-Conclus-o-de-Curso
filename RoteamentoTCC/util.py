@@ -36,14 +36,22 @@ from RoteamentoTCC.nsga.nsga2 import NSGA2
 # Bibliotecas para criação de arquivos temporários
 import tempfile
 import shutil
-# Funçaõ de arredondamento para cima
+# Função de arredondamento para cima
 from math import ceil
+# Bibliotecas necessárias para capturar a altitude dos pontos
+import requests
+import time
 
 # Número máximo de clusters
 MAX_CLUSTERS = 30
+# MAX_CLUSTERS = 3
 
 # Número máximo de caminhões
 MAX_CAMINHOES = 30
+
+# Indica qual mapa está sendo usado: F = Formiga; L = Lagoa da Prata
+# MAPA = 'F'
+MAPA = 'L'
 
 # Parâmetros para a plotagem de imagens
 plt.rcParams['figure.figsize'] = (16, 9)
@@ -66,10 +74,12 @@ grafo_cidade_simplificado = nx.MultiGraph()
 
 # Capacidade de lixo que um caminhão de lixo possuiem KG
 CAPACIDADE_CAMINHAO = 10000
-# CAPACIDADE_CAMINHAO = 100
+# CAPACIDADE_CAMINHAO = 1000
 
-# Identifica o id do ponto que representa o depósito
-DEPOSITO = '3627233002'
+# Identifica o id do ponto que representa o depósito no mapa de Lagoa da Prata - MG
+DEPOSITO = '353304393'
+# Identifica o id do ponto que representa o depósito no mapa de Formiga - MG
+# DEPOSITO = '3627233002'
 # Identificador do depósito no arquivo utilizado para testes
 # DEPOSITO = '7560818573'
 
@@ -309,8 +319,14 @@ def otimiza_grafo():
 
 
 def adiciona_alturas():
+
     # Abre o arquivo que contém as altitudes dos pontos
-    arq_altitudes = open("entrada/alturas.osm", "r")
+    if MAPA == 'F':
+
+        arq_altitudes = open("entrada/alturas.osm", "r")
+    else:
+
+        arq_altitudes = open("entrada/alturas_lagoa.osm", "r")
 
     # Passa por todas as linhas do arquivo
     for linha in arq_altitudes:
@@ -1014,3 +1030,44 @@ def monta_cache_mapas():
 
         # Insere na lista global para ser acessada posteriormente
         cache_mapas_eulerizados[n_cluster] = [pontos_clusterizados, subgrafos_eularizados]
+
+
+# Captura a altitude dos pontos
+def captura_altitude():
+
+    payload = {}
+    headers = {}
+
+    # identifica de qual mapa serão obtidas as altitudes
+    if MAPA == 'F':
+
+        arquivo = open('entrada/alturas.osm', 'a')
+    else:
+
+        arquivo = open('entrada/alturas_lagoa.osm', 'a')
+
+    # Itera sobre os pontos do mapa
+    for id_ponto, ponto in pontos.items():
+
+        # É necessário ter um tempo entre as requisições para não ser desconectado
+        time.sleep(2)
+
+        # URL da requisição
+        url = f"https://api.opentopodata.org/v1/test-dataset?locations={ponto.latitude},{ponto.longitude}"
+
+        # Obtém a resposta da API
+        response = requests.request("GET", url, headers=headers, data=payload)
+
+        # Se for uma resposta de sucesso, escreve os dados no arquivo
+        if response.status_code == 200:
+
+            texto_resposta = response.text.split()
+
+            arquivo.write(f"id = \"{id_ponto}\" altitude = \"{texto_resposta[7][:-1]}\"\n")
+        else:
+
+            print(response.reason)
+            arquivo.close()
+            break
+
+    arquivo.close()

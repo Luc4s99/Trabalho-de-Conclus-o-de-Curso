@@ -13,6 +13,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import RoteamentoTCC.util as util
 from RoteamentoTCC.Rota import *
+import numpy as np
 
 # Importando métodos úteis da classe população
 from RoteamentoTCC.nsga.population import Population
@@ -101,6 +102,9 @@ class NSGA2:
         # Variável que irá armazenar a melhor fronteira
         best_front = None
 
+        # Lista para armazenar a evolução da fronteira de Paretto
+        evolucao_fronts = []
+
         # Passa pelo número de gerações definido
         for i in range(self.generations):
 
@@ -112,10 +116,6 @@ class NSGA2:
 
             # Separa a população em fronteiras, onde cada fronteira tem populações
             fronts = self.fast_non_dominated_sort()
-
-            """# Como as fronteiras são ordenadas pelos melhores indivíduos
-            # A primeira fronteira sempre terá as populações com os melhores indivíduos
-            best_front = fronts[0]"""
 
             # Cálculo do crowding distance
             self.crowding_distance_assignment(fronts)
@@ -156,12 +156,19 @@ class NSGA2:
             # Armazena a melhor fronteira para ser calculado o hypervolume
             self.add_population_to_file(best_front)
 
+            # Aramazena a evolução dos fronts de 30 em 30 gerações
+            if i % 30 == 0:
+
+                evolucao_fronts.append(best_front)
+
         self.runtime = time.time() - start_time
 
         self.calculate_hypervolume()
 
         # Gerando arquivos de saída
         self.gera_resultados(best_front)
+
+        self.gera_evolucao_paretto(evolucao_fronts)
 
         return best_front
 
@@ -315,10 +322,12 @@ class NSGA2:
             tempo_caminhoes[vez] += distancia_cluster
             vez += 1
 
+        # Armazena o tempo dos caminhoes(que também representa a quilometragem)
+        individual.quilometragem_caminhoes = tempo_caminhoes
+
         # Retorna a soma de tempo dos caminhões: Métrica de minimização
         # O valor absoluto da variação de altitude: Métrica de minimização
         # A quantidade de caminhões: Métrica de minimização
-        # return [sum(tempo_caminhoes), abs(variacao_altitude), individual.genome[0]]
         return [max(tempo_caminhoes), variacao_altitude, individual.genome[0]]
 
     # Função que avalia os indivíduos gerados na população
@@ -494,6 +503,7 @@ class NSGA2:
             worst = population.individuals[i]
 
             for j in range(1, len(population.individuals) - i):
+
                 worst = self.crowded_comparison(worst, population.individuals[j])
 
             population.individuals.remove(worst)
@@ -785,237 +795,7 @@ class NSGA2:
         plt.close()
 
     # Gera um arquivo com os resultados obtidos pelo algoritmo
-    """def gera_resultados(self, front):
-
-        # Arquivo com algumas informações gerais da coleta
-        with open("saida/resultados/dados_coleta.txt", "w") as arq:
-
-            arq.write("*** RESULTADOS OBTIDOS DA COLETA ***\n")
-
-            # Resultados de lixo recolhido
-            arq.write(
-                f"\nQuantidade de lixo recolhido(kg): {front.individuals[0].quantidade_lixo} ({round((front.individuals[0].quantidade_lixo * 100) / util.quantidade_lixo_cidade)}%)")
-
-            # Resultados sobre os parâmetros utilizados
-            arq.write(f"\nNúmero de caminhões utilizados para a realização da coleta: {front.individuals[0].genome[0]}")
-            arq.write(f"\nNúmero de agrupamentos realizados pelo mapa: {front.individuals[0].genome[1]}")
-
-        with open("saida/resultados/rotas/arquivo_rota_completa.kml", "w") as rota_completa:
-
-            rota_completa.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
-                      "<kml xmlns=\"http://www.opengis.net/kml/2.2\">\n"
-                      "<Document>\n"
-                      "<name>Rota completa de todos os caminhões</name>\n"
-                      "<Style id=\"icon-1899-DB4436-nodesc-normal\">\n"
-                      "<IconStyle>\n"
-                      "<color>ff3644db</color>\n"
-                      "<scale>1</scale>\n"
-                      "<Icon>\n"
-                      "<href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>\n"
-                      "</Icon>\n"
-                      "<hotSpot x=\"32\" xunits=\"pixels\" y=\"64\" yunits=\"insetPixels\"/>\n"
-                      "</IconStyle>\n"
-                      "<LabelStyle>\n"
-                      "<scale>0</scale>\n"
-                      "</LabelStyle>\n"
-                      "<BalloonStyle>\n"
-                      "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
-                      "</BalloonStyle>\n"
-                      "</Style>\n"
-                      "<Style id=\"icon-1899-DB4436-nodesc-highlight\">\n"
-                      "<IconStyle>\n"
-                      "<color>ff3644db</color>\n"
-                      "<scale>1</scale>\n"
-                      "<Icon>\n"
-                      "<href>https://www.gstatic.com/mapspro/images/stock/503-wht-blank_maps.png</href>\n"
-                      "</Icon>\n"
-                      "<hotSpot x=\"32\" xunits=\"pixels\" y=\"64\" yunits=\"insetPixels\"/>\n"
-                      "</IconStyle>\n"
-                      "<LabelStyle>\n"
-                      "<scale>1</scale>\n"
-                      "</LabelStyle>\n"
-                      "<BalloonStyle>\n"
-                      "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
-                      "</BalloonStyle>\n"
-                      "</Style>\n"
-                      "<StyleMap id=\"icon-1899-DB4436-nodesc\">\n"
-                      "<Pair>\n"
-                      "<key>normal</key>\n"
-                      "<styleUrl>#icon-1899-DB4436-nodesc-normal</styleUrl>\n"
-                      "</Pair>\n"
-                      "<Pair>\n"
-                      "<key>highlight</key>\n"
-                      "<styleUrl>#icon-1899-DB4436-nodesc-highlight</styleUrl>\n"
-                      "</Pair>\n"
-                      "</StyleMap>\n"
-                      "<Style id=\"line-1267FF-5000-nodesc-normal\">\n"
-                      "<LineStyle>\n"
-                      "<color>ffff6712</color>\n"
-                      "<width>5</width>\n"
-                      "</LineStyle>\n"
-                      "<BalloonStyle>\n"
-                      "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
-                      "</BalloonStyle>\n"
-                      "</Style>\n"
-                      "<Style id=\"line-1267FF-5000-nodesc-highlight\">\n"
-                      "<LineStyle>\n"
-                      "<color>ffff6712</color>\n"
-                      "<width>7.5</width>\n"
-                      "</LineStyle>\n"
-                      "<BalloonStyle>\n"
-                      "<text><![CDATA[<h3>$[name]</h3>]]></text>\n"
-                      "</BalloonStyle>\n"
-                      "</Style>\n"
-                      "<StyleMap id=\"line-1267FF-5000-nodesc\">\n"
-                      "<Pair>\n"
-                      "<key>normal</key>\n"
-                      "<styleUrl>#line-1267FF-5000-nodesc-normal</styleUrl>\n"
-                      "</Pair>\n"
-                      "<Pair>\n"
-                      "<key>highlight</key>\n"
-                      "<styleUrl>#line-1267FF-5000-nodesc-highlight</styleUrl>\n"
-                      "</Pair>\n"
-                      "</StyleMap>\n")
-
-            # Para cada caminhão utilizado na coleta, gera um mapa com a rota a ser realizada por ele
-            for caminhao, rotas_caminhao in front.individuals[0].rotas.items():
-
-                # Percorre cada uma das rotas do caminhão para realizar o plot
-                for num_rota, rota in enumerate(rotas_caminhao):
-
-                    # Abre os arquivos que irão descrever a rota do caminhão
-                    with open(f"saida/resultados/rotas/caminhao{caminhao}_rota_{num_rota}.txt", "w") as txt:
-
-                        rota_completa.write("<Folder>\n"
-                                            f"<name>Rota {num_rota} caminhão {caminhao}</name>\n"
-                                            "<Placemark>\n"
-                                            f"<name>Rota {num_rota} caminhão {caminhao}</name>\n"
-                                            "<styleUrl>#line-1267FF-5000-nodesc</styleUrl>\n"
-                                            "<LineString>\n"
-                                            "<tessellate>1</tessellate>\n"
-                                            "<coordinates>\n")
-
-                        # Variável que permite que o primeiro ponto da tupla seja escrito, para que a rota fique correta
-                        # Isso é feito pois as tuplas da rota vem da seguinte maneira:
-                        # [(1, 2), (2, 3), (3, 4), (4, 5)]
-                        primeiro_pnt = True
-
-                        # Em cada rota, percorre os pontos que a formam
-                        for pnt in rota.rota:
-
-                            if util.grafo_cidade_simplificado.has_edge(pnt[0], pnt[1]):
-
-                                # Escreve os detalhes da rota num arquivo txt
-                                rua = util.grafo_cidade_simplificado[pnt[0]][pnt[1]][0]["rua"]
-
-                                if rua.nome is not None and rua.nome is not "":
-
-                                    txt.write(rua.nome + " -> ")
-
-                            if primeiro_pnt:
-
-                                rota_completa.write(f"{util.pontos[pnt[0]].longitude}, {util.pontos[pnt[0]].latitude}, 0\n")
-                                rota_completa.write(f"{util.pontos[pnt[1]].longitude}, {util.pontos[pnt[1]].latitude}, 0\n")
-
-                                primeiro_pnt = False
-                            else:
-
-                                rota_completa.write(f"{util.pontos[pnt[1]].longitude}, {util.pontos[pnt[1]].latitude}, 0\n")
-
-                        rota_completa.write("</coordinates>\n"
-                                            "</LineString>\n"
-                                            "</Placemark>\n")
-
-                        # Escreve a rota de ida
-                        if rota.ida:
-
-                            rota_completa.write("<Placemark>\n"
-                                                f"<name> Ida do depósito a Rota {num_rota} do caminhão {caminhao}</name>\n"
-                                                "<styleUrl>#line-1267FF-5000-nodesc</styleUrl>\n"
-                                                "<LineString>\n"
-                                                "<tessellate>1</tessellate>\n"
-                                                "<coordinates>\n")
-
-                            primeiro_pnt = True
-
-                            for ponto_ida in rota.ida:
-
-                                if primeiro_pnt:
-
-                                    rota_completa.write(
-                                        f"{util.pontos[ponto_ida[0]].longitude}, {util.pontos[ponto_ida[0]].latitude}, 0\n")
-                                    rota_completa.write(
-                                        f"{util.pontos[ponto_ida[1]].longitude}, {util.pontos[ponto_ida[1]].latitude}, 0\n")
-
-                                    primeiro_pnt = False
-                                else:
-
-                                    rota_completa.write(
-                                        f"{util.pontos[ponto_ida[1]].longitude}, {util.pontos[ponto_ida[1]].latitude}, 0\n")
-
-                            rota_completa.write("</coordinates>\n"
-                                                "</LineString>\n"
-                                                "</Placemark>\n")
-
-                        # Escreve a rota de volta
-                        if rota.volta:
-
-                            rota_completa.write("<Placemark>\n"
-                                                f"<name> Volta da Rota {num_rota} do caminhão {caminhao} ao depósito</name>\n"
-                                                "<styleUrl>#line-1267FF-5000-nodesc</styleUrl>\n"
-                                                "<LineString>\n"
-                                                "<tessellate>1</tessellate>\n"
-                                                "<coordinates>\n")
-
-                            primeiro_pnt = True
-
-                            for ponto_volta in rota.volta:
-
-                                if primeiro_pnt:
-
-                                    rota_completa.write(
-                                        f"{util.pontos[ponto_volta[0]].longitude}, {util.pontos[ponto_volta[0]].latitude}, 0\n")
-                                    rota_completa.write(
-                                        f"{util.pontos[ponto_volta[1]].longitude}, {util.pontos[ponto_volta[1]].latitude}, 0\n")
-
-                                    primeiro_pnt = False
-                                else:
-
-                                    rota_completa.write(
-                                        f"{util.pontos[ponto_volta[1]].longitude}, {util.pontos[ponto_volta[1]].latitude}, 0\n")
-
-                            rota_completa.write("</coordinates>\n"
-                                                "</LineString>\n"
-                                                "</Placemark>\n")
-
-                        rota_completa.write("<Placemark>\n"
-                                            "<name>DEPÓSITO</name>\n"
-                                            "<styleUrl>#icon-1899-DB4436-nodesc</styleUrl>\n"
-                                            "<Point>\n"
-                                            "<coordinates>\n"
-                                            f"{util.pontos[util.DEPOSITO].longitude}, {util.pontos[util.DEPOSITO].latitude}, 0\n"
-                                            "</coordinates>\n"
-                                            "</Point>\n"
-                                            "</Placemark>\n"
-                                            "</Folder>\n")
-
-            rota_completa.write("</Document>\n"
-                                "</kml>\n")"""
-
     def gera_resultados(self, front):
-
-        # Arquivo com algumas informações gerais da coleta
-        with open("saida/resultados/dados_coleta.txt", "w") as arq:
-
-            arq.write("*** RESULTADOS OBTIDOS DA COLETA ***\n")
-
-            # Resultados de lixo recolhido
-            arq.write(
-                f"\nQuantidade de lixo recolhido(kg): {front.individuals[0].quantidade_lixo} ({round((front.individuals[0].quantidade_lixo * 100) / util.quantidade_lixo_cidade)}%)")
-
-            # Resultados sobre os parâmetros utilizados
-            arq.write(f"\nNúmero de caminhões utilizados para a realização da coleta: {front.individuals[0].genome[0]}")
-            arq.write(f"\nNúmero de agrupamentos realizados pelo mapa: {front.individuals[0].genome[1]}")
 
         with open("saida/resultados/rotas/arquivo_rota_completa.kml", "w") as rota_completa:
 
@@ -1207,3 +987,75 @@ class NSGA2:
 
             rota_completa.write("</Document>\n"
                                 "</kml>\n")
+
+        # Arquivo com algumas informações gerais da coleta
+        with open("saida/resultados/dados_coleta.txt", "w") as arq:
+
+            arq.write("*** RESULTADOS OBTIDOS DA COLETA ***\n")
+
+            # Resultados de lixo recolhido
+            arq.write(
+                f"\nQuantidade de lixo recolhido(kg): {front.individuals[0].quantidade_lixo:.0f} ({round((front.individuals[0].quantidade_lixo * 100) / util.quantidade_lixo_cidade)}%)")
+
+            # Resultados sobre os parâmetros utilizados
+            arq.write(
+                f"\nNúmero de caminhões utilizados para a realização da coleta: {front.individuals[0].genome[0]}")
+            arq.write(f"\nNúmero de regiões de coleta realizadas pelo mapa: {front.individuals[0].genome[1]}")
+
+            arq.write(f"\nQuilometragem total dos percursos: {(sum(front.individuals[0].quilometragem_caminhoes) / 1000):.2f}")
+            arq.write("\nQuilometragem individual de cada caminhão:\n\n")
+
+            for n_cam, km in enumerate(front.individuals[0].quilometragem_caminhoes):
+
+                arq.write(f"\tCaminhão {n_cam} (km): {(km / 1000):.2f}\n")
+
+            arq.write(f"\nTempo aproximado de coleta: {(front.individuals[0].calcula_tempo_coleta() / 60):.2f} horas\n")
+            arq.write(f"Menor tempo de coleta entre os caminhões: {(front.individuals[0].calcula_menor_tempo_coleta() / 60):.2f} horas\n")
+
+    # Gera uma imagem com a evolução das fronteiras de Paretto
+    def gera_evolucao_paretto(self, lista_fronts):
+
+        # Comparação dos resultados: Quantidade de caminhões x quilometragem
+        tuplas_qtd_km = []
+
+        # Cores para colorir cada uma das fronteiras
+        cores = ['red', 'blue', 'black', 'green', 'purple']
+
+        # Ordem em que devem ser coloridos os pontos
+        colorir = []
+
+        # Percorre os fronts e seus indivíduos
+        for n_front, front in enumerate(lista_fronts):
+
+            for ind in front.individuals:
+
+                # Somente os indivíduos na fronteira de Paretto são plotados
+                if ind.rank == 1:
+
+                    tuplas_qtd_km.append(((ind.non_normalized_solutions[0] / 1000), ind.non_normalized_solutions[1]))
+                    colorir.append(cores[n_front])
+
+        # Realiza a plotagem da imagem
+        x, y = zip(*tuplas_qtd_km)
+
+        plt.scatter(x, y, c=colorir)
+        plt.ylabel("Quantidade caminhões")
+        plt.xlabel("Quilometragem")
+        plt.savefig("saida/Resultados/evolucao_paretto.png")
+
+    def mapa_calor(self):
+
+        pass
+
+    def gera_grafico_superficie(self):
+
+        x = np.outer(np.linspace(-2, 2, 30), np.ones(30))
+        y = x.copy().T  # transpose
+        z = np.cos(x ** 2 + y ** 2)
+
+        fig = plt.figure()
+        ax = plt.axes(projection='3d')
+
+        ax.plot_surface(x, y, z, cmap='viridis', edgecolor='none')
+        ax.set_title('Surface plot')
+        plt.show()
