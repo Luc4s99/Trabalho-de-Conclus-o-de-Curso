@@ -71,9 +71,6 @@ class NSGA2:
         # self.create_front_file("[1.1, 1.1, 1.1, 1.1]")
         self.create_front_file("[3, 3, 3]")
 
-        # Depende da forma que será feita a mutação
-        # self.genotype_mutation_probability = 0.5
-
         # Inicializacao da população
         self.population = Population(max_caminhoes, min_clusters, max_clusters)
 
@@ -166,8 +163,39 @@ class NSGA2:
         self.calculate_hypervolume()
 
         # Gerando arquivos de saída
-        self.gera_resultados(best_front)
+        # Itera sobre os indivíduos procurando por:
 
+        # O indivíduo com os melhores resultados gerais
+        melhor_ind_geral = best_front.individuals[0]
+        # O indivíduo com a menor quilometragem rodada
+        melhor_ind_km = best_front.individuals[0]
+        # O indivíduo com o menor número de caminhões
+        melhor_ind_cam = best_front.individuals[0]
+
+        for ind in best_front.individuals:
+
+            # Verifica o caminhão com menor quilometragem e também o número de caminhões
+            if ind.non_normalized_solutions[0] <= melhor_ind_geral.non_normalized_solutions[0] and \
+                    ind.non_normalized_solutions[2] <= melhor_ind_geral.non_normalized_solutions[2]:
+
+                melhor_ind_geral = ind
+
+            # Verifica a quilometragem total dos caminhoes
+            if (sum(ind.quilometragem_caminhoes)) < (sum(melhor_ind_km.quilometragem_caminhoes)):
+
+                melhor_ind_km = ind
+
+            # Verifica o número total de caminhões
+            if ind.non_normalized_solutions[2] < melhor_ind_cam.non_normalized_solutions[2]:
+
+                melhor_ind_cam = ind
+
+        # Gera os resultados dos indivíduos
+        self.gera_resultados(melhor_ind_geral, 'melhor_ind_geral')
+        self.gera_resultados(melhor_ind_km, 'melhor_ind_km')
+        self.gera_resultados(melhor_ind_cam, "melhor_ind_cam")
+
+        # Gera o arquivo que mostra a evolução das fronteiras de Paretto
         self.gera_evolucao_paretto(evolucao_fronts)
 
         return best_front
@@ -766,18 +794,20 @@ class NSGA2:
         # Primeira coluna representa o valor do hypervolume, segunda o tempo de execução
         try:
 
-            with open(output_file_name, "a") as f:
+            # Descomentar caso queira gerar esse arquivo
+            """with open(output_file_name, "a") as f:
 
                 line = str(result[-1]) + "," + str(self.runtime) + "\n"
-                f.write(line)
+                f.write(line)"""
         except IOError:
 
-            with open(output_file_name, "w") as f:
+            # Descomentar caso queira gerar esse arquivo
+            """with open(output_file_name, "w") as f:
 
                 line = "hv\ttime\n"
                 f.write(line)
                 line = str(result[-1]) + "," + str(self.runtime) + "\n"
-                f.write(line)
+                f.write(line)"""
 
         file_path = os.path.realpath(__file__)
         # directory = file_path[:-5]
@@ -795,9 +825,9 @@ class NSGA2:
         plt.close()
 
     # Gera um arquivo com os resultados obtidos pelo algoritmo
-    def gera_resultados(self, front):
+    def gera_resultados(self, individuo, diretorio):
 
-        with open("saida/resultados/rotas/arquivo_rota_completa.kml", "w") as rota_completa:
+        with open(f"saida/resultados/{diretorio}/rotas/arquivo_rota_completa.kml", "w") as rota_completa:
 
             rota_completa.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                                 "<kml xmlns=\"http://www.opengis.net/kml/2.2\" "
@@ -865,13 +895,13 @@ class NSGA2:
                                 "</StyleMap>\n")
 
             # Para cada caminhão utilizado na coleta, gera um mapa com a rota a ser realizada por ele
-            for caminhao, rotas_caminhao in front.individuals[0].rotas.items():
+            for caminhao, rotas_caminhao in individuo.rotas.items():
 
                 # Percorre cada uma das rotas do caminhão para realizar o plot
                 for num_rota, rota in enumerate(rotas_caminhao):
 
                     # Abre os arquivos que irão descrever a rota do caminhão
-                    with open(f"saida/resultados/rotas/caminhao{caminhao}_rota_{num_rota}.txt", "w") as txt:
+                    with open(f"saida/resultados/{diretorio}/rotas/caminhao{caminhao}_rota_{num_rota}.txt", "w") as txt:
 
                         # Adicona o depósito da rota
                         rota_completa.write(f"<Folder id=\"f{caminhao}\">\n"
@@ -989,34 +1019,41 @@ class NSGA2:
                                 "</kml>\n")
 
         # Arquivo com algumas informações gerais da coleta
-        with open("saida/resultados/dados_coleta.txt", "w") as arq:
+        with open(f"saida/resultados/{diretorio}/dados_coleta.txt", "w") as arq:
 
             arq.write("*** RESULTADOS OBTIDOS DA COLETA ***\n")
 
             # Resultados de lixo recolhido
             arq.write(
-                f"\nQuantidade de lixo recolhido(kg): {front.individuals[0].quantidade_lixo:.0f} ({round((front.individuals[0].quantidade_lixo * 100) / util.quantidade_lixo_cidade)}%)")
+                f"\nQuantidade de lixo recolhido(kg): {individuo.quantidade_lixo:.0f} ({round((individuo.quantidade_lixo * 100) / util.quantidade_lixo_cidade)}%)")
 
             # Resultados sobre os parâmetros utilizados
             arq.write(
-                f"\nNúmero de caminhões utilizados para a realização da coleta: {front.individuals[0].genome[0]}")
-            arq.write(f"\nNúmero de regiões de coleta realizadas pelo mapa: {front.individuals[0].genome[1]}")
+                f"\nNúmero de caminhões utilizados para a realização da coleta: {individuo.genome[0]}")
+            arq.write(f"\nNúmero de regiões de coleta realizadas pelo mapa: {individuo.genome[1]}")
 
-            arq.write(f"\nQuilometragem total dos percursos: {(sum(front.individuals[0].quilometragem_caminhoes) / 1000):.2f}")
+            arq.write(f"\nQuilometragem total dos percursos: {(sum(individuo.quilometragem_caminhoes) / 1000):.2f}")
             arq.write("\nQuilometragem individual de cada caminhão:\n\n")
 
-            for n_cam, km in enumerate(front.individuals[0].quilometragem_caminhoes):
+            for n_cam, km in enumerate(individuo.quilometragem_caminhoes):
 
                 arq.write(f"\tCaminhão {n_cam} (km): {(km / 1000):.2f}\n")
 
-            arq.write(f"\nTempo aproximado de coleta: {(front.individuals[0].calcula_tempo_coleta() / 60):.2f} horas\n")
-            arq.write(f"Menor tempo de coleta entre os caminhões: {(front.individuals[0].calcula_menor_tempo_coleta() / 60):.2f} horas\n")
+            arq.write(f"\nTempo aproximado de coleta: {(individuo.calcula_tempo_coleta() / 60):.2f} horas\n")
+            arq.write(f"Menor tempo de coleta entre os caminhões: {(individuo.calcula_menor_tempo_coleta() / 60):.2f} horas\n")
+            arq.write(f"Índice de variação de altitude da rota: {individuo.non_normalized_solutions[1]:.2f}")
 
     # Gera uma imagem com a evolução das fronteiras de Paretto
     def gera_evolucao_paretto(self, lista_fronts):
 
         # Comparação dos resultados: Quantidade de caminhões x quilometragem
         tuplas_qtd_km = []
+
+        # Comparação dos resultados: Variação de altitude x quilometragem
+        tuplas_alt_km = []
+
+        # Comparação dos resultados:
+        tuplas_qtd_alt = []
 
         # Cores para colorir cada uma das fronteiras
         cores = ['red', 'blue', 'black', 'green', 'purple']
@@ -1032,16 +1069,37 @@ class NSGA2:
                 # Somente os indivíduos na fronteira de Paretto são plotados
                 if ind.rank == 1:
 
-                    tuplas_qtd_km.append(((ind.non_normalized_solutions[0] / 1000), ind.non_normalized_solutions[1]))
                     colorir.append(cores[n_front])
 
-        # Realiza a plotagem da imagem
+                    tuplas_qtd_alt.append((ind.non_normalized_solutions[2], ind.non_normalized_solutions[1]))
+
+                    tuplas_qtd_km.append((ind.non_normalized_solutions[2], (ind.non_normalized_solutions[0] / 1000)))
+
+                    tuplas_alt_km.append((ind.non_normalized_solutions[1], (ind.non_normalized_solutions[0] / 1000)))
+
+        # Realiza a plotagem Quantidade de caminhões x variação de altitude
+        x, y = zip(*tuplas_qtd_alt)
+
+        plt.scatter(x, y, c=colorir)
+        plt.ylabel("Variação de altitude")
+        plt.xlabel("Quantidade de caminhões")
+        plt.savefig("saida/Resultados/evolucao_paretto0.png")
+
+        # Realiza a plotagem Quantidade de caminhões x quilometragem
         x, y = zip(*tuplas_qtd_km)
 
         plt.scatter(x, y, c=colorir)
-        plt.ylabel("Quantidade caminhões")
-        plt.xlabel("Quilometragem")
-        plt.savefig("saida/Resultados/evolucao_paretto.png")
+        plt.ylabel("Quilometragem")
+        plt.xlabel("Quantidade caminhões")
+        plt.savefig("saida/Resultados/evolucao_paretto1.png")
+
+        # Realiza a plotagem variação de altitude x quilometragem
+        x, y = zip(*tuplas_alt_km)
+
+        plt.scatter(x, y, c=colorir)
+        plt.ylabel("Quilometragem")
+        plt.xlabel("Variação de altitude")
+        plt.savefig("saida/Resultados/evolucao_paretto2.png")
 
     def mapa_calor(self):
 

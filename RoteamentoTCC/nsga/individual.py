@@ -23,6 +23,9 @@ class Individual:
         self.solutions = list()
 
         # Lista de soluções ainda não normalizadas
+        # [0] Quilometragem/tempo do caminhão
+        # [1] Variação de altitude
+        # [2] Número de caminhões
         self.non_normalized_solutions = list()
 
         # Quantity of individuals which dominate this individual
