@@ -6,6 +6,8 @@ Link do GitHub: https://github.com/thalesorp/NSGA-II
 E também possui partes desenvolvidas e baseadas em código desenvolvido por Mateus Soares
 Link do GitHub: https://github.com/MateusSoares/Wireless-Access-Point-Optimization
 
+Este projeto também utiliza dados obtidos pelo projeto Open Street Map
+Link: https://www.openstreetmap.org/about
 """
 
 import sys

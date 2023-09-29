@@ -3,6 +3,9 @@
 Este código possui partes desenvolvidas ou baseadas em código desenvolvido por Saulo Ricardo
 Link do GitHub: https://github.com/SauloRicardo/TCC_Final
 
+Este projeto também utiliza dados obtidos pelo projeto Open Street Map
+Link: https://www.openstreetmap.org/about
+
 """
 
 import RoteamentoTCC.util as util
